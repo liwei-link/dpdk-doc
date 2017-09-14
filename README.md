@@ -11,7 +11,9 @@ DPDK文档中文版（17.05.0-rc4）
 
 #构建中文文档
 [root@host ~]# cd guides_zh
-[root@host ~]# sphinx-build -b html . html
+[root@host ~]# sphinx-build . html
 
 ```
 构建完成的文档在 guides_zh/html/index.html
+
+在线文档 [http://www.0211.life](http://www.0211.life/)
