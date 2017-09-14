@@ -33,18 +33,17 @@
 Ring库
 ============
 
-ring用于队列管理。
-Instead of having a linked list of infinite size, the rte_ring has the following properties:
+ring可用于队列管理，其底层原理不是无限大小的链表，rte_ring库有如下属性: 
 
-*   FIFO
+*   FIFO（先进先出）
 
-*   Maximum size is fixed, the pointers are stored in a table
+*   大小固定, the pointers are stored in a table
 
-*   Lockless implementation
+*   无锁化
 
-*   Multi-consumer or single-consumer dequeue
+*   多消费者/单消费之出队
 
-*   Multi-producer or single-producer enqueue
+*   多生产者/单生产者入队
 
 *   Bulk dequeue - Dequeues the specified count of objects if successful; otherwise fails
 
