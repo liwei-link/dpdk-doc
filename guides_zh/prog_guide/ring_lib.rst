@@ -45,21 +45,21 @@ ring可用于队列管理，其底层原理不是无限大小的链表，rte_rin
 
 *   多生产者/单生产者入队
 
-*   Bulk dequeue - Dequeues the specified count of objects if successful; otherwise fails
+*   Bulk dequeue - 从队列中取出的对象个数与指定的数量相等则成功，否则失败。
 
-*   Bulk enqueue - Enqueues the specified count of objects if successful; otherwise fails
+*   Bulk enqueue - 往队列中存放的对象个数与指定的数量相等则成功，否则失败。
 
-*   Burst dequeue - Dequeue the maximum available objects if the specified count cannot be fulfilled
+*   Burst dequeue - 如果队列中能取出对象数量不足指定的数量，则取出所有可取对象。
 
-*   Burst enqueue - Enqueue the maximum available objects if the specified count cannot be fulfilled
+*   Burst enqueue - 如果队列中不能容纳指定数量对象，则往队列中加入可容纳数量的对象。
 
-The advantages of this data structure over a linked list queue are as follows:
+非链表数据结构的优势如下:
 
-*   Faster; only requires a single Compare-And-Swap instruction of sizeof(void \*) instead of several double-Compare-And-Swap instructions.
+*   更加快速; 仅需要sizeof(void \*)一次Compare-And-Swap指令，而不是多次double-Compare-And-Swap指令。
 
-*   Simpler than a full lockless queue.
+*   比完全无锁队列还简单。
 
-*   Adapted to bulk enqueue/dequeue operations.
+*   适合bulk enqueue/dequeue操作。
     As pointers are stored in a table, a dequeue of several objects will not produce as many cache misses as in a linked queue.
     Also, a bulk dequeue of many objects does not cost more than a dequeue of a simple object.
 
