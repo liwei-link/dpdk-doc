@@ -1,0 +1,72 @@
+
+.. raw:: html
+
+   <style>
+      .wy-nav-content {
+         opacity: .99;
+      }
+      table#id4 {
+         cursor: default;
+         overflow: hidden;
+      }
+      table#id4 th, table#id4 td {
+         text-align: center;
+      }
+      table#id4 th {
+         font-size: 80%;
+         white-space: pre-wrap;
+         vertical-align: top;
+         padding: 2px;
+      }
+      table#id4 th:first-child {
+         vertical-align: bottom;
+      }
+      table#id4 td {
+         font-size: 70%;
+         padding: 1px;
+      }
+      table#id4 td:first-child {
+         padding-left: 1em;
+         text-align: left;
+      }
+      table#id4 tr:nth-child(2n-1) td {
+         background-color: rgba(210, 210, 210, 0.2);
+      }
+      table#id4 th:not(:first-child):hover,
+      table#id4 td:not(:first-child):hover {
+         position: relative;
+      }
+      table#id4 th:not(:first-child):hover::after,
+      table#id4 td:not(:first-child):hover::after {
+         content: '';
+         height: 6000px;
+         top: -3000px;
+         width: 100%;
+         left: 0;
+         position: absolute;
+         z-index: -1;
+         background-color: #ffb;
+      }
+      table#id4 tr:hover td {
+         background-color: #ffb;
+      }
+   </style>
+
+.. table:: AEAD algorithms in crypto drivers
+
+   ========================= = = = = = = = = = =
+   AEAD algorithm            a a a d k n o q s z
+                             e e r p a u p a n u
+                             s s m a s l e t o c
+                             n n v a u l n   w
+                             i i 8 2 m   s   3
+                             _ _   _ i   s   g
+                             g m   s     l
+                             c b   e
+                             m     c
+                            
+   ========================= = = = = = = = = = =
+   AES GCM (128)             Y           Y Y
+   AES GCM (192)                         Y Y
+   AES GCM (256)             Y           Y Y
+   ========================= = = = = = = = = = =

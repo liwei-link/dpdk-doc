@@ -1,0 +1,135 @@
+
+.. raw:: html
+
+   <style>
+      .wy-nav-content {
+         opacity: .99;
+      }
+      table#id1 {
+         cursor: default;
+         overflow: hidden;
+      }
+      table#id1 th, table#id1 td {
+         text-align: center;
+      }
+      table#id1 th {
+         font-size: 80%;
+         white-space: pre-wrap;
+         vertical-align: top;
+         padding: 2px;
+      }
+      table#id1 th:first-child {
+         vertical-align: bottom;
+      }
+      table#id1 td {
+         font-size: 70%;
+         padding: 1px;
+      }
+      table#id1 td:first-child {
+         padding-left: 1em;
+         text-align: left;
+      }
+      table#id1 tr:nth-child(2n-1) td {
+         background-color: rgba(210, 210, 210, 0.2);
+      }
+      table#id1 th:not(:first-child):hover,
+      table#id1 td:not(:first-child):hover {
+         position: relative;
+      }
+      table#id1 th:not(:first-child):hover::after,
+      table#id1 td:not(:first-child):hover::after {
+         content: '';
+         height: 6000px;
+         top: -3000px;
+         width: 100%;
+         left: 0;
+         position: absolute;
+         z-index: -1;
+         background-color: #ffb;
+      }
+      table#id1 tr:hover td {
+         background-color: #ffb;
+      }
+   </style>
+
+.. table:: Features availability in networking drivers
+
+   ========================= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   Feature                   a a a b b b b c d e e e f f f f i i i i i i i i i i k l m m n n p q q r s s t t v v v v x
+                             f r v n n n o x p 1 n n m m m m 4 4 4 4 g g x x x x n i l l f u c e e i f z a h h i i m e
+                             p k p x x x n g a 0 a i 1 1 1 1 0 0 0 0 b b g g g g i q x x p l a d d n c e p u o r r x n
+                             a     2 2 t d b a 0   c 0 0 0 0 e e e e   v b b b b   u 4 5   l p e e g _ d   n s t t n v
+                             c     x x   i e 2 0     k k k k   . v v   f e e e e   i             v   e a   d t i i e i
+                             k       v   n             . v v   . f f       . v v   d             f   f t   e   o o t r
+                             e       f   g             . f f   .   .       . f f   i                 x a   r     . 3 t
+                             t                         v   v   v   v       v   v   o                   2   x     v
+                                                       e   e   e   e       e   e                                 e
+                                                       c   c   c   c       c   c                                 c
+   ========================= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+   Speed capabilities                                                                  Y Y     Y Y   Y   Y
+   Link status                   Y Y Y Y   Y Y Y   Y         Y Y     Y   Y Y Y Y   Y Y Y Y     Y Y   Y Y Y Y Y Y Y Y
+   Link status event               Y Y         Y   Y         Y Y     Y   Y Y       Y Y Y Y     Y Y   Y   Y Y Y     Y
+   Removal event                                                                     Y
+   Queue status event                                                                                        Y
+   Rx interrupt                                Y     Y Y Y Y Y Y Y Y Y Y Y Y Y Y       Y Y                     Y Y
+   Free Tx mbuf on demand                      Y                                                             Y
+   Queue start/stop            Y       Y   Y Y   Y Y Y Y Y Y Y Y Y Y     Y Y         Y Y Y           Y Y   Y   Y Y Y
+   MTU update                              Y Y Y Y Y                 Y   Y Y Y Y     Y Y Y     Y Y   Y   Y Y   Y   Y
+   Jumbo frame                 Y Y         Y   Y Y Y Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y Y Y Y   Y Y Y   Y   Y Y       Y
+   Scattered Rx                Y Y         Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y Y Y       Y Y   Y Y   Y   Y
+   LRO                                                                   Y Y Y Y               Y Y                 Y
+   TSO                                     Y     Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y       Y Y     Y Y   Y             Y
+   Promiscuous mode              Y Y Y Y   Y Y Y   Y Y Y     Y Y Y Y Y Y Y Y         Y Y Y     Y Y   Y Y Y Y   Y Y Y
+   Allmulticast mode                       Y   Y     Y Y     Y Y Y Y Y Y Y Y Y Y   Y Y Y       Y Y   Y Y Y Y   Y Y Y
+   Unicast MAC filter            Y Y Y Y       Y   Y Y Y     Y Y Y Y Y Y Y Y Y Y     Y Y       Y Y       Y     Y Y Y
+   Multicast MAC filter            Y Y Y           Y Y Y     Y Y Y Y                 Y Y       Y Y   Y   Y     Y Y
+   RSS hash                                Y Y   Y Y Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y Y Y Y     Y Y   Y     Y       Y
+   RSS key update                                Y   Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y   Y Y     Y Y   Y     Y
+   RSS reta update                     Y         Y   Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y   Y Y     Y Y   Y     Y
+   VMDq                                              Y Y     Y Y     Y   Y Y
+   SR-IOV                            Y           Y Y         Y Y     Y   Y Y         Y Y Y       Y   Y     Y
+   DCB                                                       Y Y     Y   Y Y
+   VLAN filter                                 Y   Y Y Y     Y Y Y Y Y Y Y Y Y Y   Y Y Y       Y Y             Y Y Y
+   Ethertype filter                                          Y Y     Y   Y Y
+   N-tuple filter                                                    Y   Y Y                   Y
+   SYN filter                                                        Y   Y Y
+   Tunnel filter                                             Y Y         Y Y                   Y
+   Flexible filter                                                   Y
+   Hash filter                                               Y Y Y Y
+   Flow director                                   Y         Y Y         Y Y           Y       Y
+   Flow control                            Y   Y             Y Y     Y   Y Y             Y     Y Y   Y   Y
+   Flow API                                                  Y           Y             Y             Y   Y
+   Rate limitation                                                       Y Y
+   Traffic mirroring                                         Y Y         Y Y
+   CRC offload                             Y   Y Y Y Y Y Y Y Y   Y   Y Y Y   Y     Y   Y       Y Y         Y
+   VLAN offload                  Y         Y   Y Y Y Y Y Y Y Y   Y   Y Y Y   Y     P   Y Y     Y Y   P     P       Y
+   QinQ offload                                Y             Y   Y   Y Y Y   Y
+   L3 checksum offload                     Y Y Y Y Y Y Y Y Y Y   Y   Y Y Y   Y     Y Y Y Y     Y Y   Y     Y
+   L4 checksum offload                     Y Y Y Y Y Y Y Y Y Y   Y   Y Y Y   Y     Y Y Y Y     Y Y   Y     Y       Y
+   MACsec offload                                                        Y
+   Inner L3 checksum                             Y           Y   Y       Y   Y     Y Y Y       Y
+   Inner L4 checksum                             Y           Y   Y       Y   Y     Y Y Y       Y
+   Packet type parsing                     Y Y     Y Y Y Y Y Y   Y   Y Y Y   Y       Y Y       Y Y   Y   Y Y       Y
+   Timesync                                                  Y Y     Y   Y Y
+   Rx descriptor status                        Y             Y Y Y Y Y Y Y Y Y Y       Y
+   Tx descriptor status                        Y             Y Y Y Y Y Y Y Y Y Y       Y
+   Basic stats                 Y Y Y Y Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y Y Y   Y Y Y Y Y Y Y Y
+   Extended stats                  Y Y Y         Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y           Y Y   Y Y     Y Y
+   Stats per queue             Y Y         Y         Y Y Y Y             Y Y         Y Y Y     Y Y     Y   Y   Y Y Y
+   FW version                                                Y       Y   Y                           Y
+   EEPROM dump                             Y                         Y   Y Y
+   Registers dump                          Y                         Y Y Y Y Y Y                           Y
+   Multiprocess aware                                Y Y Y Y Y Y Y Y     Y Y Y Y   Y Y Y     Y Y Y         Y   Y
+   BSD nic_uio                             Y   Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y                     Y         Y Y
+   Linux UIO                   Y Y Y Y Y   Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y     Y     Y Y   Y         Y Y Y
+   Linux VFIO                              Y Y Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y     Y           Y     Y   Y Y Y
+   Other kdrv                                                                        Y Y               Y Y
+   ARMv7                                                                                     Y           Y     Y Y
+   ARMv8                                     Y               Y Y   Y     Y Y Y Y             Y           Y Y   Y Y
+   Power8                                                    Y Y                     Y Y     Y           Y
+   x86-32                                  Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y     Y Y     Y           Y   Y Y Y Y
+   x86-64                      Y Y Y Y Y   Y   Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y   Y Y Y Y   Y Y Y   Y Y Y   Y Y Y Y
+   Usage doc                   Y   Y Y     Y Y     Y                             Y Y Y Y Y   Y Y Y     Y Y Y   Y   Y
+   Design doc               
+   Perf doc                 
+   ========================= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

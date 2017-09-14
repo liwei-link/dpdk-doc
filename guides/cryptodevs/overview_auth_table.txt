@@ -1,0 +1,87 @@
+
+.. raw:: html
+
+   <style>
+      .wy-nav-content {
+         opacity: .99;
+      }
+      table#id3 {
+         cursor: default;
+         overflow: hidden;
+      }
+      table#id3 th, table#id3 td {
+         text-align: center;
+      }
+      table#id3 th {
+         font-size: 80%;
+         white-space: pre-wrap;
+         vertical-align: top;
+         padding: 2px;
+      }
+      table#id3 th:first-child {
+         vertical-align: bottom;
+      }
+      table#id3 td {
+         font-size: 70%;
+         padding: 1px;
+      }
+      table#id3 td:first-child {
+         padding-left: 1em;
+         text-align: left;
+      }
+      table#id3 tr:nth-child(2n-1) td {
+         background-color: rgba(210, 210, 210, 0.2);
+      }
+      table#id3 th:not(:first-child):hover,
+      table#id3 td:not(:first-child):hover {
+         position: relative;
+      }
+      table#id3 th:not(:first-child):hover::after,
+      table#id3 td:not(:first-child):hover::after {
+         content: '';
+         height: 6000px;
+         top: -3000px;
+         width: 100%;
+         left: 0;
+         position: absolute;
+         z-index: -1;
+         background-color: #ffb;
+      }
+      table#id3 tr:hover td {
+         background-color: #ffb;
+      }
+   </style>
+
+.. table:: Authentication algorithms in crypto drivers
+
+   ========================= = = = = = = = = = =
+   Authentication algorithm  a a a d k n o q s z
+                             e e r p a u p a n u
+                             s s m a s l e t o c
+                             n n v a u l n   w
+                             i i 8 2 m   s   3
+                             _ _   _ i   s   g
+                             g m   s     l
+                             c b   e
+                             m     c
+                            
+   ========================= = = = = = = = = = =
+   NULL                                Y   Y
+   MD5                                   Y
+   MD5 HMAC                    Y   Y     Y Y
+   SHA1                                  Y
+   SHA1 HMAC                   Y Y Y     Y Y
+   SHA224                                Y
+   SHA224 HMAC                 Y   Y     Y Y
+   SHA256                                Y
+   SHA256 HMAC                 Y Y Y     Y Y
+   SHA384                                Y
+   SHA384 HMAC                 Y   Y     Y Y
+   SHA512                                Y
+   SHA512 HMAC                 Y   Y     Y Y
+   AES XCBC MAC                Y           Y
+   AES GMAC                  Y           Y Y
+   SNOW3G UIA2                             Y Y
+   KASUMI F9                         Y     Y
+   ZUC EIA3                                Y   Y
+   ========================= = = = = = = = = = =
