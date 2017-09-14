@@ -33,7 +33,7 @@
 Ring库
 ============
 
-The ring allows the management of queues.
+ring用于队列管理。
 Instead of having a linked list of infinite size, the rte_ring has the following properties:
 
 *   FIFO
