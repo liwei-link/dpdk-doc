@@ -28,6 +28,8 @@
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+github: https://github.com/leewill1120/dpdk-doc
+
 DPDK documentation
 ==================
 
@@ -48,3 +50,4 @@ DPDK documentation
    contributing/index
    rel_notes/index
    faq/index
+   
