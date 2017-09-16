@@ -48,7 +48,7 @@ except:
     import configparser
 
 
-project = u'数据平面开发套件'
+project = 'Data Plane Development Kit'
 
 if LooseVersion(sphinx_version) >= LooseVersion('1.3.1'):
     html_theme = "sphinx_rtd_theme"
