@@ -338,8 +338,7 @@ ring包含12536个实例
 代码始终会使生产者和消费者保持一定距离（0到size(ring)-1）。由于这个特性，我们能够在2个基于32位模的索引值上做减法:
 这就是为什么索引溢出不是问题。
 
-At any time, entries and free_entries are between 0 and size(ring)-1,
-even if only the first term of subtraction has overflowed:
+entries 和 free_entries 总是在0和size(ring)-1之间，即使溢出。
 
 .. code-block:: c
 
