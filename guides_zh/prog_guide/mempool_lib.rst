@@ -69,7 +69,7 @@ The physical layout of the DRAM chips on the DIMM itself does not necessarily re
 
 .. note::
 
-    命令行必须为处理器提供指定内存通道数量。
+    命令行必须为处理器提供内存通道数量。
 
 :numref:`figure_memory-management` 和 :numref:`figure_memory-management2` 是不同DIMM架构的对齐示例。
 
