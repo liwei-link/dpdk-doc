@@ -33,32 +33,30 @@
 内存池库
 ===============
 
-A memory pool is an allocator of a fixed-sized object.
-In the DPDK, it is identified by name and uses a mempool handler to store free objects.
-The default mempool handler is ring based.
-It provides some other optional services such as a per-core object cache and
-an alignment helper to ensure that objects are padded to spread them equally on all DRAM or DDR3 channels.
+内存池是固定大小对象的分配器。
+在DPDK中使用名称标识内存池，使用mempool处理器存储空闲对象。默认的mempool处理器基于ring。
+其提供一些可选服务，如per-core对象缓存和对齐辅助（alignment helper，保证对象在所有RAM通道上均匀分布）。
 
-This library is used by the :ref:`Mbuf Library <Mbuf_Library>`.
+该库由 :ref:`Mbuf 库 <Mbuf_Library>` 引用。
 
 Cookies
 -------
 
-In debug mode (CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG is enabled), cookies are added at the beginning and end of allocated blocks.
-The allocated objects then contain overwrite protection fields to help debugging buffer overflows.
+在调试模式(启用 CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG)中，所申请内存块的首尾会增加额外信息（cookies）。
+然后申请的对象包含覆写保护字段用于调试缓冲区溢出。
 
-Stats
+统计
 -----
 
-In debug mode (CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG is enabled),
-statistics about get from/put in the pool are stored in the mempool structure.
-Statistics are per-lcore to avoid concurrent access to statistics counters.
+在调试模式(启用 CONFIG_RTE_LIBRTE_MEMPOOL_DEBUG)中,
+对象的get/put统计信息存储在mempool结构中。
+统计信息是per-lcore的，避免了统计计数器的并行访问。
 
-Memory Alignment Constraints
+内存对齐限制
 ----------------------------
 
-Depending on hardware memory configuration, performance can be greatly improved by adding a specific padding between objects.
-The objective is to ensure that the beginning of each object starts on a different channel and rank in memory so that all channels are equally loaded.
+根据硬件内存配置，可以通过给对象之间增加填充提高性能。
+目的是确保每个对象分布在内存的不同通道(channel)和rank，使得内存通道负载均衡。
 
 This is particularly true for packet buffers when doing L3 forwarding or flow classification.
 Only the first 64 bytes are accessed, so performance can be increased by spreading the start addresses of objects among the different channels.
