@@ -37,37 +37,37 @@ ring可用于队列管理，其底层原理不是无限大小的链表，rte_rin
 
 *   FIFO（先进先出）
 
-*   大小固定, the pointers are stored in a table
+*   大小固定, 指针存储在表中
 
 *   无锁化
 
-*   多消费者/单消费之出队
+*   多消费者/单消费者出队
 
 *   多生产者/单生产者入队
 
-*   Bulk dequeue - 从队列中取出的对象个数与指定的数量相等则成功，否则失败。
+*   Bulk dequeue - 从队列中取出指定数量对象，若可出队数量与指定数量不同操作失败，否则成功。
 
-*   Bulk enqueue - 往队列中存放的对象个数与指定的数量相等则成功，否则失败。
+*   Bulk enqueue - 向队列中加入指定数量对象，若可入队数量与指定数量不同操作失败，否则成功。
 
-*   Burst dequeue - 如果队列中能取出对象数量不足指定的数量，则取出所有可取对象。
+*   Burst dequeue - 从队列中取出指定数量对象，若队列对象数量不足则取出所有可用对象。
 
-*   Burst enqueue - 如果队列中不能容纳指定数量对象，则往队列中加入可容纳数量的对象。
+*   Burst enqueue - 向队列中加入指定数量对象，若队列空间不足则加入可用空间数量的对象。
 
 非链式队列数据结构的优势如下:
 
-*   更加快速; 仅需要sizeof(void \*)一次Compare-And-Swap指令，而不是多次double-Compare-And-Swap指令。
+*   更加快速; 仅需要一次Compare-And-Swap指令sizeof(void \*)，而不是多次double-Compare-And-Swap指令。
 
 *   比完全无锁队列还简单。
 
 *   适合bulk enqueue/dequeue操作。
     因为指针存储在表中，多个对象出队不会产生像链式队列那么多的缓存未命中。
-    多个对象bulk dequeue操作也不会比单个对象更加耗费资源。
+    多对象bulk dequeue操作也不会比单个对象更加耗费资源。
 
 劣势:
 
 *   大小固定
 
-*   比链式队列更耗内存。一个空ring中至少包好N个指针。
+*   比链式队列更耗内存。一个空ring中至少包含N个指针。
 
 一个Ring的简单表示，消费者和生产者的头尾指针指向该数据结构中对象。
 
@@ -81,16 +81,16 @@ ring可用于队列管理，其底层原理不是无限大小的链表，rte_rin
 FreeBSD* 中Ring实现参考
 ----------------------------------------------
 
-下面的代码在FreeBSD 8.0中加入，用于一些网络设备驱动（至少Intel的驱动中有使用）:
+下面的代码在FreeBSD 8.0中加入，在一些网络设备驱动使用（至少Intel的驱动中有使用）:
 
     * `bufring.h in FreeBSD <http://svn.freebsd.org/viewvc/base/release/8.0.0/sys/sys/buf_ring.h?revision=199625&amp;view=markup>`_
 
     * `bufring.c in FreeBSD <http://svn.freebsd.org/viewvc/base/release/8.0.0/sys/kern/subr_bufring.c?revision=199625&amp;view=markup>`_
 
-Linux* 中无锁Ring缓存区
+Linux* 中无锁环形缓冲区（Ring Buffer）
 ------------------------------
 
-下面的链接描述了 `Linux无锁Ring缓冲区设计 <http://lwn.net/Articles/340400/>`_.
+下面的链接描述了 `Linux无锁环形缓冲区（Ring Buffer）设计 <http://lwn.net/Articles/340400/>`_.
 
 附加特性
 -------------------
@@ -221,7 +221,7 @@ ring空间不足（通过 prod_tail 检测）返回错误。
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 本节解释两个生产者如何同时向队列中加入对象。
-本例中只有一个生产者，仅有生产者头尾（prod_head和prod_tail）会被修改。
+本例中仅有生产者头尾（prod_head和prod_tail）会被修改。
 
 初始时prod_head和prod_tail指向同一位置。
 
@@ -250,7 +250,7 @@ ring空间不足（通过 cons_tail 检测）返回错误。
 
 *   否则，ring->prod_head 被设置成局部的 prod_next，CAS操作成功，处理继续往下进行。
 
-图中，核1上操作成功，核2上操作失败，从第一步重新开始。
+图中，核1操作成功，核2操作失败，核2从第一步重新开始。
 
 .. _figure_ring-mp-enqueue2:
 
