@@ -56,23 +56,22 @@ Cookies
 ----------------------------
 
 根据硬件内存配置，可以通过给对象之间增加填充提高性能。
-目的是确保每个对象分布在内存的不同通道(channel)和rank，使得内存通道负载均衡。
+目的是确保每个对象起始地址分布在内存的不同通道(channel)和rank，使得内存通道负载均衡。
 
-This is particularly true for packet buffers when doing L3 forwarding or flow classification.
-Only the first 64 bytes are accessed, so performance can be increased by spreading the start addresses of objects among the different channels.
+这对L3转发和流量分类时的包缓存性能提升尤其显著。
+由于仅需要处理前64字节，所以可以通过把缓存包对象起始地址分布在不同内存通道上来提升性能。
 
 The number of ranks on any DIMM is the number of independent sets of DRAMs that can be accessed for the full data bit-width of the DIMM.
 The ranks cannot be accessed simultaneously since they share the same data path.
 The physical layout of the DRAM chips on the DIMM itself does not necessarily relate to the number of ranks.
 
-When running an application, the EAL command line options provide the ability to add the number of memory channels and ranks.
+运行应用时，通过EAL提供的参数配置可以增加内存通道和rank的数量。
 
 .. note::
 
-    The command line must always have the number of memory channels specified for the processor.
+    命令行必须为处理器提供指定内存通道数量。
 
-Examples of alignment for different DIMM architectures are shown in
-:numref:`figure_memory-management` and :numref:`figure_memory-management2`.
+:numref:`figure_memory-management` 和 :numref:`figure_memory-management2` 是不同DIMM架构的对齐示例。
 
 .. _figure_memory-management:
 
@@ -81,10 +80,9 @@ Examples of alignment for different DIMM architectures are shown in
    Two Channels and Quad-ranked DIMM Example
 
 
-In this case, the assumption is that a packet is 16 blocks of 64 bytes, which is not true.
+该示例中，假设一个包由16个64字节块组成(现实情况并非如此)。
 
-The Intel® 5520 chipset has three channels, so in most cases,
-no padding is required between objects (except for objects whose size are n x 3 x 64 bytes blocks).
+Intel® 5520芯片组有三个通道，因此大部分情况对象之间不需要填充(除非对象的大小是 n x 3 x 64 字节块)。
 
 .. _figure_memory-management2:
 
@@ -93,11 +91,11 @@ no padding is required between objects (except for objects whose size are n x 3 
    Three Channels and Two Dual-ranked DIMM Example
 
 
-When creating a new pool, the user can specify to use this feature or not.
+创建新内存池时，用户可以选择是否使用该特性。
 
 .. _mempool_local_cache:
 
-Local Cache
+本地缓存
 -----------
 
 In terms of CPU usage, the cost of multiple cores accessing a memory pool's ring of free buffers may be high
