@@ -91,80 +91,64 @@ Intel® 5520芯片组有三个通道，因此大部分情况对象之间不需�
    Three Channels and Two Dual-ranked DIMM Example
 
 
-创建新内存池时，用户可以选择是否使用该特性。
+创建新内存池时，用户可以选择是否使用对齐特性。
 
 .. _mempool_local_cache:
 
 本地缓存
 -----------
 
-In terms of CPU usage, the cost of multiple cores accessing a memory pool's ring of free buffers may be high
-since each access requires a compare-and-set (CAS) operation.
-To avoid having too many access requests to the memory pool's ring,
-the memory pool allocator can maintain a per-core cache and do bulk requests to the memory pool's ring,
-via the cache with many fewer locks on the actual memory pool structure.
-In this way, each core has full access to its own cache (with locks) of free objects and
-only when the cache fills does the core need to shuffle some of the free objects back to the pools ring or
-obtain more objects when the cache is empty.
+在CPU使用方面，多核访问内存池ring的代价可能很高，因为每次都需要compare-and-set (CAS)操作。
+为了减少内存池ring的访问，内存池分配器维护一个per-core缓存并对内存池ring做bulk请求(Bulk dequeue/Bulk enqueue ),
+在实际的内存池结构中使用的是带有很少锁的缓存。每个核可以自由地访问自己的空闲对象缓存(有锁),
+在缓存满的时候把部分空闲对象刷回内存池ring中，缓存空时会从内存池ring中获取一些对象放在缓存中。
 
-While this may mean a number of buffers may sit idle on some core's cache,
-the speed at which a core can access its own cache for a specific memory pool without locks provides performance gains.
+虽然这会导致对象在核的缓存中闲置，暂时无法被其他核利用，但当前核心访问自己缓存的速度很快，这会提供更好的性能。
 
-The cache is composed of a small, per-core table of pointers and its length (used as a stack).
-This internal cache can be enabled or disabled at creation of the pool.
+该缓存由一个小per-core指针表和长度构成，并且作为一个栈来使用。在创建池的时候可以选择启用或关闭。
 
-The maximum size of the cache is static and is defined at compilation time (CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE).
+缓存大小是固定的，在编译时由 CONFIG_RTE_MEMPOOL_CACHE_MAX_SIZE 定义。
 
-:numref:`figure_mempool` shows a cache in operation.
+:numref:`figure_mempool` 展示了缓存操作.
 
 .. _figure_mempool:
 
 .. figure:: img/mempool.*
 
-   A mempool in Memory with its Associated Ring
+   内存中的mempool和相关的Ring
 
-Alternatively to the internal default per-lcore local cache, an application can create and manage external caches through the ``rte_mempool_cache_create()``, ``rte_mempool_cache_free()`` and ``rte_mempool_cache_flush()`` calls.
-These user-owned caches can be explicitly passed to ``rte_mempool_generic_put()`` and ``rte_mempool_generic_get()``.
-The ``rte_mempool_default_cache()`` call returns the default internal cache if any.
-In contrast to the default caches, user-owned caches can be used by non-EAL threads too.
+除了内部默认的per-lcore本地缓存，应用也可以通过 ``rte_mempool_cache_create()``, ``rte_mempool_cache_free()`` 和 ``rte_mempool_cache_flush()`` 创建和管理额外的缓存。
+通过 ``rte_mempool_generic_put()`` and ``rte_mempool_generic_get()`` 存取对象。 ``rte_mempool_default_cache()`` 调用返回默认的内部缓存(如果有的话)。
+与默认缓存相比，用户自己的缓存可以用于非EAL线程。
 
 Mempool Handlers
 ------------------------
 
-This allows external memory subsystems, such as external hardware memory
-management systems and software based memory allocators, to be used with DPDK.
+DPDK可以使用外部内存子系统，如硬件内存管理系统和基于内存分配器的软内存系统。
 
-There are two aspects to a mempool handler.
+mempool handler 的两个方面
 
-* Adding the code for your new mempool operations (ops). This is achieved by
-  adding a new mempool ops code, and using the ``MEMPOOL_REGISTER_OPS`` macro.
+* 使用宏 ``MEMPOOL_REGISTER_OPS`` 增加新的内存池操作(ops)代码。
 
-* Using the new API to call ``rte_mempool_create_empty()`` and
-  ``rte_mempool_set_ops_byname()`` to create a new mempool and specifying which
-  ops to use.
+* 使用新API  ``rte_mempool_create_empty()`` 和 ``rte_mempool_set_ops_byname()``
+  创建mempool并指定ops。
 
-Several different mempool handlers may be used in the same application. A new
-mempool can be created by using the ``rte_mempool_create_empty()`` function,
-then using ``rte_mempool_set_ops_byname()`` to point the mempool to the
-relevant mempool handler callback (ops) structure.
+相同应用中可能会使用多个不同的mempool handler。使用函数 ``rte_mempool_create_empty()`` 
+创建mempool，然后使用 ``rte_mempool_set_ops_byname()`` 设置相关的mempool handler回调(ops)结构。
 
-Legacy applications may continue to use the old ``rte_mempool_create()`` API
-call, which uses a ring based mempool handler by default. These applications
-will need to be modified to use a new mempool handler.
+遗留的(Legacy)应用中可能仍使用旧的API ``rte_mempool_create()`` ，这个API默认使用基于mempool handler的ring。
+这些应用需要改成使用新的mempool handler。
 
-For applications that use ``rte_pktmbuf_create()``, there is a config setting
-(``RTE_MBUF_DEFAULT_MEMPOOL_OPS``) that allows the application to make use of
-an alternative mempool handler.
+在使用 ``rte_pktmbuf_create()`` 的应用中，有个配置项(``RTE_MBUF_DEFAULT_MEMPOOL_OPS``)，通过它可以选择mempool handler
 
-
-Use Cases
+使用案例
 ---------
 
-All allocations that require a high level of performance should use a pool-based memory allocator.
-Below are some examples:
+需要高性能内存申请的地方都应该使用基于池的内存分配器。
+如以下案例:
 
-*   :ref:`Mbuf Library <Mbuf_Library>`
+*   :ref:`Mbuf 库 <Mbuf_Library>`
 
-*   :ref:`Environment Abstraction Layer <Environment_Abstraction_Layer>` , for logging service
+*   :ref:`环境抽象层EAL <Environment_Abstraction_Layer>` , 的日志服务
 
-*   Any application that needs to allocate fixed-sized objects in the data plane and that will be continuously utilized by the system.
+*   需要在数据平面上频繁处理大小固定对象的应用
