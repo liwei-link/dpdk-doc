@@ -33,132 +33,109 @@
 Mbuf库
 ============
 
-The mbuf library provides the ability to allocate and free buffers (mbufs)
-that may be used by the DPDK application to store message buffers.
-The message buffers are stored in a mempool, using the :ref:`Mempool Library <Mempool_Library>`.
+mbuf库用于申请和释放DPDK应用用于存储消息的缓冲区(mbuf)。消息缓冲区存储于mempool中，使用了 :ref:`Mempool 库 <Mempool_Library>`。
 
-A rte_mbuf struct can carry network packet buffers
-or generic control buffers (indicated by the CTRL_MBUF_FLAG).
-This can be extended to other types.
-The rte_mbuf header structure is kept as small as possible and currently uses
-just two cache lines, with the most frequently used fields being on the first
-of the two cache lines.
+rte_mbuf结构体能够承载网络包缓冲区和通用控制缓冲区(由CTRL_MBUF_FLAG标识)，也能被扩展到其他类型。
+rte_mbuf头结构尽可能的小，当前仅使用了两个cache-line，但大多数时候仅使用第一个cache-line。
 
-Design of Packet Buffers
+包缓冲区的设计
 ------------------------
 
-For the storage of the packet data (including protocol headers), two approaches were considered:
+对于包数据(包括协议头)的存储，有两种方法:
 
-#.  Embed metadata within a single memory buffer the structure followed by a fixed size area for the packet data.
+#.  元数据结构和包数据使用同一个内存缓冲区
 
-#.  Use separate memory buffers for the metadata structure and for the packet data.
+#.  元数据结构和包数据使用不同的内存缓冲区
 
-The advantage of the first method is that it only needs one operation to allocate/free the whole memory representation of a packet.
-On the other hand, the second method is more flexible and allows
-the complete separation of the allocation of metadata structures from the allocation of packet data buffers.
+第一种的优势是对于一个包的内存申请/释放仅需要一次。而第二种则更加灵活，元数据结构的申请和数据包的申请完全分离。
 
-The first method was chosen for the DPDK.
-The metadata contains control information such as message type, length,
-offset to the start of the data and a pointer for additional mbuf structures allowing buffer chaining.
+DPDK中选择第一种方法。元数据中包含控制信息，如消息类型，长度，数据偏移，指向另外mbuf的指针（用于缓冲区链）
 
-Message buffers that are used to carry network packets can handle buffer chaining
-where multiple buffers are required to hold the complete packet.
-This is the case for jumbo frames that are composed of many mbufs linked together through their next field.
+消息缓冲区是用于承载缓冲区链的网络包的，缓冲区链中需要多个缓冲区才能组成一个完整的包。
+比如由多个mbuf组成的巨帧(mbuf之间通过next字段连接在一起)。
 
-For a newly allocated mbuf, the area at which the data begins in the message buffer is
-RTE_PKTMBUF_HEADROOM bytes after the beginning of the buffer, which is cache aligned.
-Message buffers may be used to carry control information, packets, events,
-and so on between different entities in the system.
-Message buffers may also use their buffer pointers to point to other message buffer data sections or other structures.
+对于新申请的mbuf，数据区是在缓冲区起始地址后 RTE_PKTMBUF_HEADROOM 字节处，数据区地址是缓存对齐的。
+消息缓冲区可用于在不同实体间承载控制信息，包，事件等。
+消息缓冲区中的缓冲区指针也指向其他消息缓冲区数据段或结构体。
 
-:numref:`figure_mbuf1` and :numref:`figure_mbuf2` show some of these scenarios.
+:numref:`figure_mbuf1` 和 :numref:`figure_mbuf2` 展示了一些场景
 
 .. _figure_mbuf1:
 
 .. figure:: img/mbuf1.*
 
-   An mbuf with One Segment
+   一个段的mbuf
 
 
 .. _figure_mbuf2:
 
 .. figure:: img/mbuf2.*
 
-   An mbuf with Three Segments
+   三个段的mbuf
 
 
-The Buffer Manager implements a fairly standard set of buffer access functions to manipulate network packets.
+缓冲区管理器实现了一组相当标准的缓冲区访问函数来操作网络数据包。
 
-Buffers Stored in Memory Pools
+存储在内存池中的缓冲区
 ------------------------------
 
-The Buffer Manager uses the :ref:`Mempool Library <Mempool_Library>` to allocate buffers.
-Therefore, it ensures that the packet header is interleaved optimally across the channels and ranks for L3 processing.
-An mbuf contains a field indicating the pool that it originated from.
-When calling rte_ctrlmbuf_free(m) or rte_pktmbuf_free(m), the mbuf returns to its original pool.
+缓冲区管理器使用 :ref:`Mempool 库 <Mempool_Library>` 申请缓冲区。
+因此，可以确保包头在L3处理时能够最优的分布在不同内存通道。
+mbuf中包含一个指示内存池的字段。调用 rte_ctrlmbuf_free(m) 或者 rte_pktmbuf_free(m)时，mbuf被放回原始的内存池中。
 
-Constructors
+构造器
 ------------
 
-Packet and control mbuf constructors are provided by the API.
-The rte_pktmbuf_init() and rte_ctrlmbuf_init() functions initialize some fields in the mbuf structure that
-are not modified by the user once created (mbuf type, origin pool, buffer start address, and so on).
-This function is given as a callback function to the rte_mempool_create() function at pool creation time.
+API提供了数据包和控制消息mbuf的构造器。rte_pktmbuf_init() 和 rte_ctrlmbuf_init() 初始化了mbuf结构体中的部分字段，
+这些字段用户不会修改(如mbuf类型，来源池，缓冲区起始地址等)。在创建池的时候，该函数作为回调函数传递给rte_mempool_create()。
 
-Allocating and Freeing mbufs
+申请和释放mbuf
 ----------------------------
 
-Allocating a new mbuf requires the user to specify the mempool from which the mbuf should be taken.
-For any newly-allocated mbuf, it contains one segment, with a length of 0.
-The offset to data is initialized to have some bytes of headroom in the buffer (RTE_PKTMBUF_HEADROOM).
+申请mbuf时需要用户指定内存池，新申请的mbuf包含一个段，且长度为0。数据偏移初始化为头空间大小(RTE_PKTMBUF_HEADROOM)。
 
-Freeing a mbuf means returning it into its original mempool.
-The content of an mbuf is not modified when it is stored in a pool (as a free mbuf).
-Fields initialized by the constructor do not need to be re-initialized at mbuf allocation.
+释放mbuf意味着把它归还到来源内存池。归还时mbuf中内容不会被修改(作为一个空闲mbuf)。
+因此，再次申请该mbuf时，已由构造器初始化的字段无需重新初始化。
 
-When freeing a packet mbuf that contains several segments, all of them are freed and returned to their original mempool.
+释放包含多个段的mbuf时，所有的段都会被归还到其来源内存池中。
 
-Manipulating mbufs
+操作mbuf
 ------------------
 
-This library provides some functions for manipulating the data in a packet mbuf. For instance:
+库提供了一些操作mbuf中数据的函数，例如:
 
-    *  Get data length
+    *  获取数据长度
 
-    *  Get a pointer to the start of data
+    *  获取数据起始地址
 
-    *  Prepend data before data
+    *  在数据段前插入数据
 
-    *   Append data after data
+    *   数据段追加数据
 
-    *   Remove data at the beginning of the buffer (rte_pktmbuf_adj())
+    *   移除缓冲区起始的数据 (rte_pktmbuf_adj())
 
-    *   Remove data at the end of the buffer (rte_pktmbuf_trim()) Refer to the *DPDK API Reference* for details.
+    *   移除缓冲区结尾的数据 (rte_pktmbuf_trim()) 详细参考 *DPDK API Reference* 。
 
-Meta Information
+元信息
 ----------------
 
-Some information is retrieved by the network driver and stored in an mbuf to make processing easier.
-For instance, the VLAN, the RSS hash result (see :ref:`Poll Mode Driver <Poll_Mode_Driver>`)
-and a flag indicating that the checksum was computed by hardware.
+网络驱动会获取一些信息并存储在mbuf中，这些信息有助于后续的包处理。
+比如，VLAN，RSS哈希结果(参见 :ref:`轮询模式驱动 <Poll_Mode_Driver>`)，硬件已完成校验标识。
 
 An mbuf also contains the input port (where it comes from), and the number of segment mbufs in the chain.
+mbuf中也包含了输入端口(包来源)和链中mbuf段个数。
 
-For chained buffers, only the first mbuf of the chain stores this meta information.
+对于链缓冲区, 仅在链中第一个mbuf中存储元信息。
 
-For instance, this is the case on RX side for the IEEE1588 packet
-timestamp mechanism, the VLAN tagging and the IP checksum computation.
+比如，IEEE1588接收上的包时间戳机制，VLAN标签和IP校验。
 
-On TX side, it is also possible for an application to delegate some
-processing to the hardware if it supports it. For instance, the
-PKT_TX_IP_CKSUM flag allows to offload the computation of the IPv4
-checksum.
+在发送上, 应用也可以让硬件处理一些硬件支持的操作。
+比如，PKT_TX_IP_CKSUM标志从应用中卸载IPv4校验和计算，让硬件计算。
 
-The following examples explain how to configure different TX offloads on
-a vxlan-encapsulated tcp packet:
+下面的例子解释了如何配置VXLAN封装的TX卸载(把VXLAN封装工作下移到硬件中):
 ``out_eth/out_ip/out_udp/vxlan/in_eth/in_ip/in_tcp/payload``
 
-- calculate checksum of out_ip::
+- 计算out_ip的校验和::
 
     mb->l2_len = len(out_eth)
     mb->l3_len = len(out_ip)
@@ -167,7 +144,7 @@ a vxlan-encapsulated tcp packet:
 
   This is supported on hardware advertising DEV_TX_OFFLOAD_IPV4_CKSUM.
 
-- calculate checksum of out_ip and out_udp::
+- 计算out_ip 和 out_udp的校验和::
 
     mb->l2_len = len(out_eth)
     mb->l3_len = len(out_ip)
@@ -178,7 +155,7 @@ a vxlan-encapsulated tcp packet:
   This is supported on hardware advertising DEV_TX_OFFLOAD_IPV4_CKSUM
   and DEV_TX_OFFLOAD_UDP_CKSUM.
 
-- calculate checksum of in_ip::
+- 计算in_ip的校验和::
 
     mb->l2_len = len(out_eth + out_ip + out_udp + vxlan + in_eth)
     mb->l3_len = len(in_ip)
@@ -189,7 +166,7 @@ a vxlan-encapsulated tcp packet:
   on hardware advertising DEV_TX_OFFLOAD_IPV4_CKSUM.
   Note that it can only work if outer L4 checksum is 0.
 
-- calculate checksum of in_ip and in_tcp::
+- 计算in_ip 和 in_tcp的校验和::
 
     mb->l2_len = len(out_eth + out_ip + out_udp + vxlan + in_eth)
     mb->l3_len = len(in_ip)
@@ -216,7 +193,7 @@ a vxlan-encapsulated tcp packet:
   This is supported on hardware advertising DEV_TX_OFFLOAD_TCP_TSO.
   Note that it can only work if outer L4 checksum is 0.
 
-- calculate checksum of out_ip, in_ip, in_tcp::
+- 计算out_ip, in_ip, in_tcp的校验和::
 
     mb->outer_l2_len = len(out_eth)
     mb->outer_l3_len = len(out_ip)
@@ -231,50 +208,39 @@ a vxlan-encapsulated tcp packet:
   This is supported on hardware advertising DEV_TX_OFFLOAD_IPV4_CKSUM,
   DEV_TX_OFFLOAD_UDP_CKSUM and DEV_TX_OFFLOAD_OUTER_IPV4_CKSUM.
 
-The list of flags and their precise meaning is described in the mbuf API
-documentation (rte_mbuf.h). Also refer to the testpmd source code
-(specifically the csumonly.c file) for details.
+标志的列表和意义在mbuf API文档(rte_mbuf.h)中有详细描述。也可以参考testpmd源码(特别是 csumonly.c 文件)
 
 .. _direct_indirect_buffer:
 
-Direct and Indirect Buffers
+直接和间接缓冲区
 ---------------------------
 
-A direct buffer is a buffer that is completely separate and self-contained.
-An indirect buffer behaves like a direct buffer but for the fact that the buffer pointer and
-data offset in it refer to data in another direct buffer.
-This is useful in situations where packets need to be duplicated or fragmented,
-since indirect buffers provide the means to reuse the same packet data across multiple buffers.
+直接缓冲区完全分开和独立的。间接缓冲区和直接缓冲区行为相似但是它的缓冲区指针和数据偏移却是指向另外一个直接缓冲区的。
+间接缓冲区用于包复制和分段，因为间接缓冲区可以重用多个缓冲区的同一个包数据。
 
-A buffer becomes indirect when it is "attached" to a direct buffer using the rte_pktmbuf_attach() function.
-Each buffer has a reference counter field and whenever an indirect buffer is attached to the direct buffer,
-the reference counter on the direct buffer is incremented.
-Similarly, whenever the indirect buffer is detached, the reference counter on the direct buffer is decremented.
-If the resulting reference counter is equal to 0, the direct buffer is freed since it is no longer in use.
+通过使用rte_pktmbuf_attach()函数可以让缓冲区“附加”到一个直接缓冲区上，操作完成后“附加”缓冲区就变成间接缓冲区。
+每个缓冲区都有一个引用计数的字段，当间接缓冲区附加到直接缓冲区上时，直接缓冲区的引用计数增加。
+类似地，当间接缓冲区和直接缓冲分离时，直接缓冲区的引用计数减少。
+如果引用计数器等于0，意味着该缓冲区不会再被使用，释放它。
 
-There are a few things to remember when dealing with indirect buffers.
-First of all, an indirect buffer is never attached to another indirect buffer.
-Attempting to attach buffer A to indirect buffer B that is attached to C, makes rte_pktmbuf_attach() automatically attach A to C, effectively cloning B.
-Secondly, for a buffer to become indirect, its reference counter must be equal to 1,
-that is, it must not be already referenced by another indirect buffer.
-Finally, it is not possible to reattach an indirect buffer to the direct buffer (unless it is detached first).
+处理间接缓冲区时有些注意事项。
+首先，间接缓冲区不能附加到间接缓冲区上，
+尝试把缓冲区A附加到已经附加到缓冲区C上的间接缓冲区B上，rte_pktmbuf_attach()会自动地把A附加到C上，等于克隆了B。
+其次，一个缓冲区要想变成间接的，他的引用计数必须等于1，也就是它不能被其他间接缓冲区引用。
+最后，间接缓冲区不能重复附加到直接缓冲区(除非首先分离)
 
-While the attach/detach operations can be invoked directly using the recommended rte_pktmbuf_attach() and rte_pktmbuf_detach() functions,
-it is suggested to use the higher-level rte_pktmbuf_clone() function,
-which takes care of the correct initialization of an indirect buffer and can clone buffers with multiple segments.
+虽然附加/分离操作可以通过rte_pktmbuf_attach() 和 rte_pktmbuf_detach()被调用，但建议使用高级的 rte_pktmbuf_clone() 函数，
+它会正确的初始化间接缓冲区，克隆多段的缓冲区。
 
-Since indirect buffers are not supposed to actually hold any data,
-the memory pool for indirect buffers should be configured to indicate the reduced memory consumption.
-Examples of the initialization of a memory pool for indirect buffers (as well as use case examples for indirect buffers)
-can be found in several of the sample applications, for example, the IPv4 Multicast sample application.
+由于间接缓冲区被认为没有持有任何数据，间接缓冲区内存池应该配置成减少内存占用。
+间接缓冲区内存区初始化的示例(也就是间接缓冲区使用示例)在示例程序中可以找到，如IPv4多播示例程序。
 
-Debug
+调试
 -----
 
-In debug mode (CONFIG_RTE_MBUF_DEBUG is enabled),
-the functions of the mbuf library perform sanity checks before any operation (such as, buffer corruption, bad type, and so on).
+调试模式(CONFIG_RTE_MBUF_DEBUG is enabled)下，mbuf库函数在执行任何操作前都要进行合法性(如，缓冲区损坏，错误类型等)检查。
 
-Use Cases
+使用案例
 ---------
 
-All networking application should use mbufs to transport network packets.
+所有网络应用都应该使用mbuf传输网络包。
