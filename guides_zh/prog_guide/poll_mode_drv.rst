@@ -89,15 +89,14 @@ Ethernet* PMD的API和架构设计考虑到如下的指导方针。
 
 PMD必须能帮助上层应用执行全局策略。反方面，NIC PMD函数不应该阻碍上层的全局策略的执行。
 
-For instance, both the receive and transmit functions of a PMD have a maximum number of packets/descriptors to poll.
-This allows a run-to-completion processing stack to statically fix or
-to dynamically adapt its overall behavior through different global loop policies, such as:
+例如，PMD的接收和传输函数都轮询最大数量的包/描述符。
+这允许静态提供run-to-completion处理栈或者通过不同的全局循环策略动态适应，比如：
 
-*   Receive, process immediately and transmit packets one at a time in a piecemeal fashion.
+*   一次只接收处理和传输一个包的零碎方式。
 
-*   Receive as many packets as possible, then process all received packets, transmitting them immediately.
+*   尽可能多的接收包，然后一起处理和传输所有接收的包。
 
-*   Receive a given maximum number of packets, process the received packets, accumulate them and finally send all accumulated packets to transmit.
+*   接收一定数量的包，处理接收的包，最后把全部处理完成的包一起传输。
 
 To achieve optimal performance, overall software design choices and pure software optimization techniques must be considered and
 balanced against available low-level hardware-based optimization features (CPU cache properties, bus speed, NIC PCI bandwidth, and so on).
@@ -105,6 +104,7 @@ The case of packet transmission is an example of this software/hardware tradeoff
 In the initial case, the PMD could export only an rte_eth_tx_one function to transmit one packet at a time on a given queue.
 On top of that, one can easily build an rte_eth_tx_burst function that loops invoking the rte_eth_tx_one function to transmit several packets at a time.
 However, an rte_eth_tx_burst function is effectively implemented by the PMD to minimize the driver-level transmit cost per packet through the following optimizations:
+为了获得最佳性能，
 
 *   Share among multiple packets the un-amortized cost of invoking the rte_eth_tx_one function.
 
