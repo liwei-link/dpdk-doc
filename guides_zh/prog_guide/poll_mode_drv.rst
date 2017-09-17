@@ -33,75 +33,61 @@
 轮询模式驱动
 ================
 
-The DPDK includes 1 Gigabit, 10 Gigabit and 40 Gigabit and para virtualized virtio Poll Mode Drivers.
+DPDK包含了1G、10G、40G比特和virtio半虚拟化轮询模式驱动。
 
-A Poll Mode Driver (PMD) consists of APIs, provided through the BSD driver running in user space,
-to configure the devices and their respective queues.
-In addition, a PMD accesses the RX and TX descriptors directly without any interrupts
-(with the exception of Link Status Change interrupts) to quickly receive,
-process and deliver packets in the user's application.
-This section describes the requirements of the PMDs,
-their global design principles and proposes a high-level architecture and a generic external API for the Ethernet PMDs.
+轮询模式驱动(Poll Mode Driver, PMD)提供了一组API用于设备和队列的配置，以运行在用户态的BSD驱动方式提供。
+另外，PMD不使用中断(除了链路状态变更中断)，而是直接访问设备的RX和TX描述符从而快速的接收，处理和传输数据包。
+本节描述了PMD的要求，和以太网PMD的高级架构与通用外部API的设计原则和建议。
 
-Requirements and Assumptions
+要求与假设
 ----------------------------
 
-The DPDK environment for packet processing applications allows for two models, run-to-completion and pipe-line:
+DPDK包处理应用有两种模型，run-to-completion 和 pipe-line:
 
-*   In the *run-to-completion*  model, a specific port's RX descriptor ring is polled for packets through an API.
-    Packets are then processed on the same core and placed on a port's TX descriptor ring through an API for transmission.
+*   在 *run-to-completion*  模型中，端口RX描述符ring通过API不断被轮询用于收包。
+    然后接收的包在同一个核上被处理，处理完毕通过API再将包放到端口的TX描述符ring中用于传送。
+	
+*   在 *pipe-line*  模型中, 核心通过API轮询一个或更多端口的RX描述符ring。
+    接收的数据包通过ring传递到另外一个核上继续处理，处理完的数据包可能会通过API被放到端口的TX描述符ring中发送。
+	
+在同步的 run-to-completion 模型中，每个逻辑核都会执行包处理循环，包括以下步骤:
 
-*   In the *pipe-line*  model, one core polls one or more port's RX descriptor ring through an API.
-    Packets are received and passed to another core via a ring.
-    The other core continues to process the packet which then may be placed on a port's TX descriptor ring through an API for transmission.
+*   通过PMD的接收API接收输入的包
 
-In a synchronous run-to-completion model,
-each logical core assigned to the DPDK executes a packet processing loop that includes the following steps:
+*   每次只处理一个接收的包，直到转发包
 
-*   Retrieve input packets through the PMD receive API
+*   通过PMD传输API发送输出包
 
-*   Process each received packet one at a time, up to its forwarding
+相反地，在异步的 pipe-line 模型中，一些逻辑核专门用于包接收，另外一些逻辑核专门处理前面接收的包。
+逻辑核间通过ring进行包的交换。包接收循环包括以下步骤:
 
-*   Send pending output packets through the PMD transmit API
+*   通过PMD接收API接收输入包
 
-Conversely, in an asynchronous pipe-line model, some logical cores may be dedicated to the retrieval of received packets and
-other logical cores to the processing of previously received packets.
-Received packets are exchanged between logical cores through rings.
-The loop for packet retrieval includes the following steps:
+*   通过包队列把接收的包传给专门处理包的核
 
-*   Retrieve input packets through the PMD receive API
+包处理循环:
 
-*   Provide received packets to processing lcores through packet queues
+*   从包队列中接收包
 
-The loop for packet processing includes the following steps:
+*   处理接收的包直到重传
 
-*   Retrieve the received packet from the packet queue
+为了避免任何非必要的中断处理开销，执行环境中不允许使用任何异步通知机制。
+必要和合理的异步通信应该尽可能通过使用ring的方式实现。
 
-*   Process the received packet, up to its retransmission if forwarded
+多核环境中锁竞争是个关键问题。为了解决这个问题，PMD设计尽可能多的使用 per-core 私有资源工作。
+例如，PMD为每个端口在每个核上维护了分开的传输队列。
+同时，端口的每个接收队列也分配给一个单独的逻辑核(lcore)轮询。
 
-To avoid any unnecessary interrupt processing overhead, the execution environment must not use any asynchronous notification mechanisms.
-Whenever needed and appropriate, asynchronous communication should be introduced as much as possible through the use of rings.
+为了遵守Non-Uniform Memory Access (NUMA)，内存管理被设计成在每个逻辑核本地分配一个私有的缓冲区池，使远程内存访问降低到最少。
+包缓冲区池的配置应该考虑底层物理内存的DIMM，channel和rank方面的架构。
+应用必须确保在创建内存池时提供正确的参数。参见 :ref:`Mempool 库 <Mempool_Library>`
 
-Avoiding lock contention is a key issue in a multi-core environment.
-To address this issue, PMDs are designed to work with per-core private resources as much as possible.
-For example, a PMD maintains a separate transmit queue per-core, per-port.
-In the same way, every receive queue of a port is assigned to and polled by a single logical core (lcore).
-
-To comply with Non-Uniform Memory Access (NUMA), memory management is designed to assign to each logical core
-a private buffer pool in local memory to minimize remote memory access.
-The configuration of packet buffer pools should take into account the underlying physical memory architecture in terms of DIMMS,
-channels and ranks.
-The application must ensure that appropriate parameters are given at memory pool creation time.
-See :ref:`Mempool Library <Mempool_Library>`.
-
-Design Principles
+设计原则
 -----------------
 
-The API and architecture of the Ethernet* PMDs are designed with the following guidelines in mind.
+Ethernet* PMD的API和架构设计考虑到如下的指导方针。
 
-PMDs must help global policy-oriented decisions to be enforced at the upper application level.
-Conversely, NIC PMD functions should not impede the benefits expected by upper-level global policies,
-or worse prevent such policies from being applied.
+PMD必须能帮助上层应用执行全局策略。反方面，NIC PMD函数不应该阻碍上层的全局策略的执行。
 
 For instance, both the receive and transmit functions of a PMD have a maximum number of packets/descriptors to poll.
 This allows a run-to-completion processing stack to statically fix or
