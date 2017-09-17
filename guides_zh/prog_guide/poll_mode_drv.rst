@@ -98,95 +98,87 @@ PMD必须能帮助上层应用执行全局策略。反方面，NIC PMD函数不�
 
 *   接收一定数量的包，处理接收的包，最后把全部处理完成的包一起传输。
 
-To achieve optimal performance, overall software design choices and pure software optimization techniques must be considered and
-balanced against available low-level hardware-based optimization features (CPU cache properties, bus speed, NIC PCI bandwidth, and so on).
-The case of packet transmission is an example of this software/hardware tradeoff issue when optimizing burst-oriented network packet processing engines.
-In the initial case, the PMD could export only an rte_eth_tx_one function to transmit one packet at a time on a given queue.
-On top of that, one can easily build an rte_eth_tx_burst function that loops invoking the rte_eth_tx_one function to transmit several packets at a time.
-However, an rte_eth_tx_burst function is effectively implemented by the PMD to minimize the driver-level transmit cost per packet through the following optimizations:
-为了获得最佳性能，
+为了获得最佳性能，必须考虑总体软件设计和纯软件优化技术，同时兼顾低级的基于硬件的优化(CPU缓存性能，总线速率，NIC PCI带宽等等)。
+包传输中的猝发式(burst-oriented)网络包传输引擎就是一个软硬件折中优化的例子。
+在最初的情况下，PMD仅提供了一个 rte_eth_tx_one 函数用于在一个队列上一次传输一个包的函数。
+除此以外，可以很容易创建一个 rte_eth_tx_burst 函数，该函数一次调用可以循环调用rte_eth_tx_one函数传输多个包。
+然而，rte_eth_tx_burst 实际是由PMD实现的，其通过下面的优化手段最小化每个包的驱动层面的传输开销:
 
-*   Share among multiple packets the un-amortized cost of invoking the rte_eth_tx_one function.
+*   在多个包之间共享调用 rte_eth_tx_one 函数的未摊销开销(un-amortized cost)。
 
-*   Enable the rte_eth_tx_burst function to take advantage of burst-oriented hardware features (prefetch data in cache, use of NIC head/tail registers)
+*   利用猝发式硬件特性(数据预取到缓存，NIC的头/尾寄存器的使用)使 rte_eth_tx_burst 函数最小化每个包处理的CPU周期数，
+    例如，避免不必要的ring传输描述符的内存读取，或者有组织的使用指针数组。* (原文: Enable the rte_eth_tx_burst function to take advantage of burst-oriented hardware features (prefetch data in cache, use of NIC head/tail registers)
     to minimize the number of CPU cycles per packet, for example by avoiding unnecessary read memory accesses to ring transmit descriptors,
-    or by systematically using arrays of pointers that exactly fit cache line boundaries and sizes.
+    or by systematically using arrays of pointers that exactly fit cache line boundaries and sizes.) *
 
-*   Apply burst-oriented software optimization techniques to remove operations that would otherwise be unavoidable, such as ring index wrap back management.
+*   应用猝发式软件优化技术，消除不可避免的操作，比如，ring索引回绕管理。
 
-Burst-oriented functions are also introduced via the API for services that are intensively used by the PMD.
-This applies in particular to buffer allocators used to populate NIC rings, which provide functions to allocate/free several buffers at a time.
-For example, an mbuf_multiple_alloc function returning an array of pointers to rte_mbuf buffers which speeds up the receive poll function of the PMD when
-replenishing multiple descriptors of the receive ring.
+猝发式函数也被PMD广泛使用的服务API引入。
+这尤其适用于用于填充NIC ring的缓冲区分配器，这种缓冲区分配器可以一次分配或释放多个缓冲区。
+比如，mbuf_multiple_alloc 函数在接收包时就会返回一组指向 rte_mbuf 缓冲区的指针，其提高了PMD接收轮询函数的速度。
 
-Logical Cores, Memory and NIC Queues Relationships
+逻辑核，内存和NIC队列的关系
 --------------------------------------------------
 
-The DPDK supports NUMA allowing for better performance when a processor's logical cores and interfaces utilize its local memory.
-Therefore, mbuf allocation associated with local PCIe* interfaces should be allocated from memory pools created in the local memory.
-The buffers should, if possible, remain on the local processor to obtain the best performance results and RX and TX buffer descriptors
-should be populated with mbufs allocated from a mempool allocated from local memory.
+DPDK支持NUMA意味着当处理器的逻辑核或者接口利用本地内存时会获得更好的性能。
+因此，与本地 PCIe* 接口相关的mbuf申请应该从本地内存池中申请。
+如果可能的话，缓冲区应该保持在本地处理器上，这样可以获得最佳的性能。并且RX和TX缓冲区应该从本地内存中申请。
 
-The run-to-completion model also performs better if packet or data manipulation is in local memory instead of a remote processors memory.
-This is also true for the pipe-line model provided all logical cores used are located on the same processor.
+run-to-completion 模型在处理本地内存数据也会表现地更好。对于所有的逻辑核处于同一个处理器的 pipe-line 模型同样适用。
 
-Multiple logical cores should never share receive or transmit queues for interfaces since this would require global locks and hinder performance.
+多个逻辑核不应该共享接收或者传输队列，因为这需要全局锁，必然会导致性能下降。
 
-Device Identification and Configuration
+设备标识和配置
 ---------------------------------------
 
-Device Identification
+设备标识
 ~~~~~~~~~~~~~~~~~~~~~
 
-Each NIC port is uniquely designated by its (bus/bridge, device, function) PCI
-identifiers assigned by the PCI probing/enumeration function executed at DPDK initialization.
-Based on their PCI identifier, NIC ports are assigned two other identifiers:
+每个NIC端口都是由PCI标识符(bus/bridge, device, function)唯一确定，P
+CI标识符是在DPDK初始化时通过PCI probing/enumeration函数分配的。
+在PCI标识符基础上，NIC端口又被分配了两个其他的标识符:
 
-*   A port index used to designate the NIC port in all functions exported by the PMD API.
+*   PMD API函数中用于指定NIC端口的端口索引。
 
-*   A port name used to designate the port in console messages, for administration or debugging purposes.
-    For ease of use, the port name includes the port index.
+*   控制台消息中用于指定端口的端口名，可用于管理或者调试。为了简化使用，端口名中包含了端口索引。
 
-Device Configuration
+设备配置
 ~~~~~~~~~~~~~~~~~~~~
 
-The configuration of each NIC port includes the following operations:
+NIC端口的配置包括以下操作:
 
-*   Allocate PCI resources
+*   申请PCI资源
 
-*   Reset the hardware (issue a Global Reset) to a well-known default state
+*   把硬件重置(发布一个全局重置)到默认状态
 
-*   Set up the PHY and the link
+*   设置物理设备和链路(Set up the PHY and the link)
 
-*   Initialize statistics counters
+*   初始化统计计数器
 
-The PMD API must also export functions to start/stop the all-multicast feature of a port and functions to set/unset the port in promiscuous mode.
+PMD API也必须提供用于启动/停止端口的 all-multicast 特性，和设置/取消端口混杂模式的函数。
 
-Some hardware offload features must be individually configured at port initialization through specific configuration parameters.
-This is the case for the Receive Side Scaling (RSS) and Data Center Bridging (DCB) features for example.
+一些硬件卸载特性必须在端口初始化时通过指定的配置参数单独地配置。
+比如接收端扩展(RSS)和数据中心桥(DCB)特性。
 
-On-the-Fly Configuration
+热配置(On-the-Fly Configuration)
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-All device features that can be started or stopped "on the fly" (that is, without stopping the device) do not require the PMD API to export dedicated functions for this purpose.
+设备所有可以热配置(也就是，在不停止设备情况下配置)的特性不需要PMD API提供专门的函数设置。
 
-All that is required is the mapping address of the device PCI registers to implement the configuration of these features in specific functions outside of the drivers.
+需要的是设备PCI寄存器的映射地址，驱动程序外的函数使用该地址可以配置这些特性。
 
-For this purpose,
-the PMD API exports a function that provides all the information associated with a device that can be used to set up a given device feature outside of the driver.
-This includes the PCI vendor identifier, the PCI device identifier, the mapping address of the PCI device registers, and the name of the driver.
+为此，PMD API提供了一个函数，该函数可在驱动程序外获取设备信息(包括PCI厂商标识符，PCI设备标识符，PCI设备寄存器映射地址和驱动名称)，
+这些信息可用于设置设备的特性。
 
-The main advantage of this approach is that it gives complete freedom on the choice of the API used to configure, to start, and to stop such features.
+这种方式的优势是可以给予特性配置，启用和关闭API充分的自由。
 
-As an example, refer to the configuration of the IEEE1588 feature for the Intel® 82576 Gigabit Ethernet Controller and
-the Intel® 82599 10 Gigabit Ethernet Controller controllers in the testpmd application.
+举例，参考testpmd应用中，Intel® 82576 和 Intel® 82599 的 IEEE1588 特性配置。
 
-Other features such as the L3/L4 5-Tuple packet filtering feature of a port can be configured in the same way.
-Ethernet* flow control (pause frame) can be configured on the individual port.
-Refer to the testpmd source code for details.
-Also, L4 (UDP/TCP/ SCTP) checksum offload by the NIC can be enabled for an individual packet as long as the packet mbuf is set up correctly. See `Hardware Offload`_ for details.
+其他的特性如端口的 L3/L4 5-Tuple 包过滤也可以以同样方式配置。
+以太网的流控(帧暂停)可以配置在每个端口上。详细信息参考 testpmd 源码。
+同样，NIC 的 L4 (UDP/TCP/ SCTP)校验和卸载也能根据单独的包开启(只要mbuf配置正确)。详细参考 `Hardware Offload`_ 。
 
-Configuration of Transmit Queues
+传输队列的配置
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each transmit queue is independently configured with the following information:
