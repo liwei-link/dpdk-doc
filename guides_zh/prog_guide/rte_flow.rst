@@ -30,18 +30,16 @@
 
 .. _Generic_flow_API:
 
-Generic flow API (rte_flow)
+通用流API (rte_flow)
 ===========================
 
-Overview
+综述
 --------
 
-This API provides a generic means to configure hardware to match specific
-ingress or egress traffic, alter its fate and query related counters
-according to any number of user-defined rules.
+该API提供了通用的硬件配置方法，使硬件能够根据用于定义的规则匹配特定出入流量，
+改变硬件工作方式和查询相关计数器。
 
-It is named *rte_flow* after the prefix used for all its symbols, and is
-defined in ``rte_flow.h``.
+该API中所有符号名都是以 *rte_flow* 为前缀，并且定义在 ``rte_flow.h`` 文件中。
 
 - Matching can be performed on packet data (protocol headers, payload) and
   properties (e.g. associated physical port, virtual device function ID).
