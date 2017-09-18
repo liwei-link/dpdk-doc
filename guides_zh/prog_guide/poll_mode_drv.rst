@@ -181,239 +181,194 @@ PMD API也必须提供用于启动/停止端口的 all-multicast 特性，和设
 传输队列的配置
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each transmit queue is independently configured with the following information:
+每个传输队列的配置都是独立的，可配置的信息有:
 
-*   The number of descriptors of the transmit ring
+*   传输队列描述符数量
 
-*   The socket identifier used to identify the appropriate DMA memory zone from which to allocate the transmit ring in NUMA architectures
+*   socket标识符，该传输队列ring的内存所在socket
 
-*   The values of the Prefetch, Host and Write-Back threshold registers of the transmit queue
+*   传输队列的预取(Prefetch)、主机(Host)和回写阀值(Write-Back threshold)寄存器值
 
-*   The *minimum* transmit packets to free threshold (tx_free_thresh).
-    When the number of descriptors used to transmit packets exceeds this threshold, the network adaptor should be checked to see if it has written back descriptors.
-    A value of 0 can be passed during the TX queue configuration to indicate the default value should be used.
-    The default value for tx_free_thresh is 32.
-    This ensures that the PMD does not search for completed descriptors until at least 32 have been processed by the NIC for this queue.
+*   传输包释放最小阀值(tx_free_thresh)。
+    当传输包的描述符数量到达阀值，网络适配器应该检查是否有回写描述符。
+    配置TX队列时可以传0使用默认阀值。默认 tx_free_thresh 是32。
+    这可以确保PMD在处理了32个描述符后再搜寻由NIC处理完成的描述符。
 
-*   The *minimum*  RS bit threshold. The minimum number of transmit descriptors to use before setting the Report Status (RS) bit in the transmit descriptor.
-    Note that this parameter may only be valid for Intel 10 GbE network adapters.
-    The RS bit is set on the last descriptor used to transmit a packet if the number of descriptors used since the last RS bit setting,
-    up to the first descriptor used to transmit the packet, exceeds the transmit RS bit threshold (tx_rs_thresh).
-    In short, this parameter controls which transmit descriptors are written back to host memory by the network adapter.
-    A value of 0 can be passed during the TX queue configuration to indicate that the default value should be used.
-    The default value for tx_rs_thresh is 32.
-    This ensures that at least 32 descriptors are used before the network adapter writes back the most recently used descriptor.
-    This saves upstream PCIe* bandwidth resulting from TX descriptor write-backs.
-    It is important to note that the TX Write-back threshold (TX wthresh) should be set to 0 when tx_rs_thresh is greater than 1.
-    Refer to the Intel® 82599 10 Gigabit Ethernet Controller Datasheet for more details.
+*   RS位最小阀值。设置传输描述符的 报告状态(RS) 位需要的最小传输描述符数。
+    注意，该参数仅对Intel 10 GbE 网络适配器有效。
+    如果从上一个设置了RS位的描述符到传输包的第一个描述符之间的描述符个数达到了传输RS为阀值(tx_rs_thresh)，
+    那就为传输包的最后一个描述符设置RS位。
+    简言之，该参数控制了哪个传输描述符被网络适配器回写到主机内存。
+    配置TX队列时可以传0使用默认阀值。默认 tx_rs_thresh 是32。
+    这可以确保在网络适配器回写最近使用的描述符前至少使用了32个描述符。
+    TX描述符回写能够节省上游 PCIe* 带宽。
+    特别要注意的是，TX回写阀值(TX wthresh)在 tx_rs_thresh 比1大时应该设置为0。
+    详细参考 Intel® 82599 10 Gigabit Ethernet Controller 手册
+	
+tx_free_thresh 和 tx_rs_thresh 必须满足以下限制:
 
-The following constraints must be satisfied for tx_free_thresh and tx_rs_thresh:
+*   tx_rs_thresh 大于0
 
-*   tx_rs_thresh must be greater than 0.
+*   tx_rs_thresh 小于 size(ring) - 2
 
-*   tx_rs_thresh must be less than the size of the ring minus 2.
+*   tx_rs_thresh 小于或等于 tx_free_thresh
 
-*   tx_rs_thresh must be less than or equal to tx_free_thresh.
+*   tx_free_thresh 大于0
 
-*   tx_free_thresh must be greater than 0.
+*   tx_free_thresh 小于 size(ring) - 3
 
-*   tx_free_thresh must be less than the size of the ring minus 3.
+*   为了获得最佳性能，TX回写阀值(TX wthresh)在 tx_rs_thresh 比1大时应该设置为0
 
-*   For optimal performance, TX wthresh should be set to 0 when tx_rs_thresh is greater than 1.
-
-One descriptor in the TX ring is used as a sentinel to avoid a hardware race condition, hence the maximum threshold constraints.
+TX ring中的一个描述符作为哨兵，用于消除硬件竞争条件，因为存在最大阀值限制。
 
 .. note::
 
-    When configuring for DCB operation, at port initialization, both the number of transmit queues and the number of receive queues must be set to 128.
+    在端口初始化配置DCB时，传输队列和接收队列数都必须设置为128。
 
-Free Tx mbuf on Demand
+按需释放Tx mbuf
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Many of the drivers do not release the mbuf back to the mempool, or local cache,
-immediately after the packet has been transmitted.
-Instead, they leave the mbuf in their Tx ring and
-either perform a bulk release when the ``tx_rs_thresh`` has been crossed
-or free the mbuf when a slot in the Tx ring is needed.
+很多驱动在包传输完成后不会立即把mbuf释放会内存池或者本地缓存。
+而是，放在Tx ring中，要么在到达 ``tx_rs_thresh`` 时执行批量释放，要么在Tx ring空间不足时释放。
 
-An application can request the driver to release used mbufs with the ``rte_eth_tx_done_cleanup()`` API.
-This API requests the driver to release mbufs that are no longer in use,
-independent of whether or not the ``tx_rs_thresh`` has been crossed.
-There are two scenarios when an application may want the mbuf released immediately:
+应用可以通过 ``rte_eth_tx_done_cleanup()`` API 让驱动释放已用过的mbuf。
+该API让驱动释放不再使用的mbuf，且不依赖 ``tx_rs_thresh`` 是否到达。
+应用要求立即释放mbuf的场景有两个:
 
-* When a given packet needs to be sent to multiple destination interfaces
-  (either for Layer 2 flooding or Layer 3 multi-cast).
-  One option is to make a copy of the packet or a copy of the header portion that needs to be manipulated.
-  A second option is to transmit the packet and then poll the ``rte_eth_tx_done_cleanup()`` API
-  until the reference count on the packet is decremented.
-  Then the same packet can be transmitted to the next destination interface.
-  The application is still responsible for managing any packet manipulations needed
-  between the different destination interfaces, but a packet copy can be avoided.
-  This API is independent of whether the packet was transmitted or dropped,
-  only that the mbuf is no longer in use by the interface.
+* 数据包需要发送到多个目的接口(二层泛洪或者三层多播)。
+  一种选择是拷贝数据包或者拷贝需要操作的包头部分。
+  第二种选择是传输数据包，然后轮询 ``rte_eth_tx_done_cleanup()`` API，直到包的引用计数减少。
+  然后同一个数据包可以传输到下一个目的接口。
+  应用仍需处理数据包发送到不同目的接口的操作，但是可以省去包拷贝操作。
+  该API不在乎包是被传输了或者被丢弃，只知道网络接口不再使用该mbuf。
 
-* Some applications are designed to make multiple runs, like a packet generator.
-  For performance reasons and consistency between runs,
-  the application may want to reset back to an initial state
-  between each run, where all mbufs are returned to the mempool.
-  In this case, it can call the ``rte_eth_tx_done_cleanup()`` API
-  for each destination interface it has been using
-  to request it to release of all its used mbufs.
+* 有些应用设计成多次运行，比如包生成器。
+  为了性能和不同运行之间一致性，应用在不同运行之间可能会需要重置到初始状态，
+  初始状态所有的mbuf都归还到内存池。
+  这种情况下，可以为每个目的接口调用  ``rte_eth_tx_done_cleanup()`` API让其释放用过的mbuf。
 
-To determine if a driver supports this API, check for the *Free Tx mbuf on demand* feature
-in the *Network Interface Controller Drivers* document.
+可以在 *Network Interface Controller Drivers* 文档中查看 *Free Tx mbuf on demand* 特性来判断驱动是否支持该API。
 
-Hardware Offload
+硬件卸载(Hardware Offload)
 ~~~~~~~~~~~~~~~~
 
-Depending on driver capabilities advertised by
-``rte_eth_dev_info_get()``, the PMD may support hardware offloading
-feature like checksumming, TCP segmentation or VLAN insertion.
+依赖 ``rte_eth_dev_info_get()`` 获得的驱动能力，PMD可以支持像校验和、TCP分段和VLAN嵌入(VLAN insertion)这样的硬件卸载特性。
 
-The support of these offload features implies the addition of dedicated
-status bit(s) and value field(s) into the rte_mbuf data structure, along
-with their appropriate handling by the receive/transmit functions
-exported by each PMD. The list of flags and their precise meaning is
-described in the mbuf API documentation and in the in :ref:`Mbuf Library
-<Mbuf_Library>`, section "Meta Information".
+这些硬件卸载特性的支持依赖rte_mbuf结构中专用的状态位和PMD的接收和传输函数的正确处理。
+标志位列表和详细描述可以在 mbuf API文档中和 :ref:`Mbuf 库 <Mbuf_Library>`, 的 "元信息"节中找到。
 
-Poll Mode Driver API
+轮询模式驱动API
 --------------------
 
-Generalities
+概论
 ~~~~~~~~~~~~
 
-By default, all functions exported by a PMD are lock-free functions that are assumed
-not to be invoked in parallel on different logical cores to work on the same target object.
-For instance, a PMD receive function cannot be invoked in parallel on two logical cores to poll the same RX queue of the same port.
-Of course, this function can be invoked in parallel by different logical cores on different RX queues.
-It is the responsibility of the upper-level application to enforce this rule.
+默认，PMD导出的函数都是无锁函数(即假定这些函数不会用于不同核同时操作同一个对象)。
+比如，PMD接收函数不能被两个核同时用于在同一个端口的同一个接收队列上接收数据。
+当然，该函数可以被不同核同时用于不同接收队列上接收数据。
+这要上层应用强制遵守该规则。
 
-If needed, parallel accesses by multiple logical cores to shared queues can be explicitly protected by dedicated inline lock-aware functions
-built on top of their corresponding lock-free functions of the PMD API.
+如果需要多核并发访问共享队列的话，可以调用基于PMD无锁函数构建的专用的内联有锁函数保护共享队列。
 
-Generic Packet Representation
+通用数据包表示
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A packet is represented by an rte_mbuf structure, which is a generic metadata structure containing all necessary housekeeping information.
-This includes fields and status bits corresponding to offload hardware features, such as checksum computation of IP headers or VLAN tags.
+数据包使用rte_mbuf结构体表示，该结构体是包含了所有必需的管理信息的通用元数据结构体。
+其包含了和硬件卸载特性相关的字段和状态位，如IP头的校验和计算或者VLAN标签。
 
-The rte_mbuf data structure includes specific fields to represent, in a generic way, the offload features provided by network controllers.
-For an input packet, most fields of the rte_mbuf structure are filled in by the PMD receive function with the information contained in the receive descriptor.
-Conversely, for output packets, most fields of rte_mbuf structures are used by the PMD transmit function to initialize transmit descriptors.
+rte_mbuf数据结构以一种通用的方式包含了由网络控制器提供的卸载特性。
+对于输入包，rte_mbuf 结构体的大部分字段由PMD接收函数根据接收描述符中包含的信息填充。
+相反，对于输出包，rte_mbuf 结构体的大部分字段被PMD传输函数用来初始化传输描述符。
 
-The mbuf structure is fully described in the :ref:`Mbuf Library <Mbuf_Library>` chapter.
+mbuf结构体完整描述 :ref:`Mbuf 库 <Mbuf_Library>`
 
-Ethernet Device API
+以太网设备API
 ~~~~~~~~~~~~~~~~~~~
 
-The Ethernet device API exported by the Ethernet PMDs is described in the *DPDK API Reference*.
+PMD导出的以太网设备API请参考  *DPDK API Reference*
 
-Extended Statistics API
+扩展统计API
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The extended statistics API allows a PMD to expose all statistics that are
-available to it, including statistics that are unique to the device.
-Each statistic has three properties ``name``, ``id`` and ``value``:
+扩展统计API允许PMD暴露所有可用的统计，包括设备特有的统计。
+每个统计项有三个属性 ``name``, ``id`` 和 ``value``:
 
-* ``name``: A human readable string formatted by the scheme detailed below.
-* ``id``: An integer that represents only that statistic.
-* ``value``: A unsigned 64-bit integer that is the value of the statistic.
+* ``name``: 按照某种方案定义的易于阅读的字符串
+* ``id``: 仅代表某种统计项的整数
+* ``value``: 无符号64位整数的统计值
 
-Note that extended statistic identifiers are
-driver-specific, and hence might not be the same for different ports.
-The API consists of various ``rte_eth_xstats_*()`` functions, and allows an
-application to be flexible in how it retrieves statistics.
+注意扩展统计是驱动特有的，所以不同端口可能会有不同的扩展统计。
+该API由各种  ``rte_eth_xstats_*()`` 函数组成，并且允许应用灵活接收统计信息。
 
-Scheme for Human Readable Names
+易于阅读的名称定义方案
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A naming scheme exists for the strings exposed to clients of the API. This is
-to allow scraping of the API for statistics of interest. The naming scheme uses
-strings split by a single underscore ``_``. The scheme is as follows:
+对于统计项暴露给API客户端的名称是有具体的命名方案的。这允许API抓取感兴趣的统计项。
+该命名方案中使用一个下划线 ``_`` 分割字符串。方案如下:
 
-* direction
-* detail 1
-* detail 2
-* detail n
-* unit
+* 方向
+* 细节 1
+* 细节 2
+* 细节 n
+* 单位
 
-Examples of common statistics xstats strings, formatted to comply to the scheme
-proposed above:
+遵守上述命名方案的统计项名称的例子:
 
 * ``rx_bytes``
 * ``rx_crc_errors``
 * ``tx_multicast_packets``
 
-The scheme, although quite simple, allows flexibility in presenting and reading
-information from the statistic strings. The following example illustrates the
-naming scheme:``rx_packets``. In this example, the string is split into two
-components. The first component ``rx`` indicates that the statistic is
-associated with the receive side of the NIC.  The second component ``packets``
-indicates that the unit of measure is packets.
+这种方案简单，信息展示灵活。比如 ``rx_packets``，分成两部分，
+第一部分 ``rx`` 指明该统计项统计的是NIC的接收侧。第二部分 ``packets`` 指明统计单位是包。
 
-A more complicated example: ``tx_size_128_to_255_packets``. In this example,
-``tx`` indicates transmission, ``size``  is the first detail, ``128`` etc are
-more details, and ``packets`` indicates that this is a packet counter.
+一个复杂的例子 ``tx_size_128_to_255_packets``，``tx`` 指明是传输, ``size``  第一个统计细节, 
+``128`` 等是细节的细节 ``packets`` 指明这是个包计数器。
 
-Some additions in the metadata scheme are as follows:
+其他:
 
-* If the first part does not match ``rx`` or ``tx``, the statistic does not
-  have an affinity with either receive of transmit.
+* 如果名称中第一部分既不是 ``rx`` 也不是 ``tx``，那么该统计项就和接收或传输没有关系。
 
-* If the first letter of the second part is ``q`` and this ``q`` is followed
-  by a number, this statistic is part of a specific queue.
+* 如果第二部分的第一个字母是 ``q``，并且 ``q`` 后面紧跟着一个数字，则该统计项是指定队列的统计。
 
-An example where queue numbers are used is as follows: ``tx_q7_bytes`` which
-indicates this statistic applies to queue number 7, and represents the number
-of transmitted bytes on that queue.
+使用队列号的例子: ``tx_q7_bytes`` 是队列7传输的字节数统计信息。
 
-API Design
+API设计
 ^^^^^^^^^^
 
 The xstats API uses the ``name``, ``id``, and ``value`` to allow performant
 lookup of specific statistics. Performant lookup means two things;
+统计API使用 ``name``, ``id``, 和 ``value`` 执行特定统计项的查询。查询意味着两件事:
 
-* No string comparisons with the ``name`` of the statistic in fast-path
-* Allow requesting of only the statistics of interest
+* 快速路径中没有统计项名称的字符串比较
 
-The API ensures these requirements are met by mapping the ``name`` of the
-statistic to a unique ``id``, which is used as a key for lookup in the fast-path.
-The API allows applications to request an array of ``id`` values, so that the
-PMD only performs the required calculations. Expected usage is that the
-application scans the ``name`` of each statistic, and caches the ``id``
-if it has an interest in that statistic. On the fast-path, the integer can be used
-to retrieve the actual ``value`` of the statistic that the ``id`` represents.
+* 允许仅查询感兴趣的统计项
 
-API Functions
+API通过把 ``name`` 映射到唯一 ``id`` 保证满足要求。``id`` 用作快速路径查找中的key。
+API允许应用请求一组 ``id``，以便PMD仅执行请求的计算。预期的使用方式是应用扫描每个统计项的 ``name``,
+并缓存感兴趣统计项的 ``id``。在快速路径中，可以通过整数 ``id`` 来获取代表的统计项实际 ``value``。
+
+API函数
 ^^^^^^^^^^^^^
 
-The API is built out of a small number of functions, which can be used to
-retrieve the number of statistics and the names, IDs and values of those
-statistics.
+扩展统计API是由少量函数组成的，这些函数可用于获取统计项数量和这些统计项的名称，ID以及值。
 
-* ``rte_eth_xstats_get_names_by_id()``: returns the names of the statistics. When given a
-  ``NULL`` parameter the function returns the number of statistics that are available.
+* ``rte_eth_xstats_get_names_by_id()``: 返回统计项数量. 当给该函数传递 ``NULL`` 参数时，
+  该函数返回所有可用统计项数量。
 
-* ``rte_eth_xstats_get_id_by_name()``: Searches for the statistic ID that matches
-  ``xstat_name``. If found, the ``id`` integer is set.
+* ``rte_eth_xstats_get_id_by_name()``: 根据名称搜索ID，如果找到了就设置整数 ``id``。
 
-* ``rte_eth_xstats_get_by_id()``: Fills in an array of ``uint64_t`` values
-  with matching the provided ``ids`` array. If the ``ids`` array is NULL, it
-  returns all statistics that are available.
+* ``rte_eth_xstats_get_by_id()``: 根据提供的 ``id`` 数组，填充对应的 ``uint64_t`` 值数组。
+  如果 ``id`` 数组是NULL，则返回所有可用的统计项。
 
 
-Application Usage
+应用的使用方法
 ^^^^^^^^^^^^^^^^^
 
-Imagine an application that wants to view the dropped packet count. If no
-packets are dropped, the application does not read any other metrics for
-performance reasons. If packets are dropped, the application has a particular
-set of statistics that it requests. This "set" of statistics allows the app to
-decide what next steps to perform. The following code-snippets show how the
-xstats API can be used to achieve this goal.
+假设应用想要查看丢包数。如果没有丢包，因为性能原因应用不会读取任何其他指标。
+如果有丢包，应用会有个特有的统计项集合。该统计项集合允许应用决定下一步执行什么。
+下面的代码片段展示了扩展统计API如何达到这个目标。
 
-First step is to get all statistics names and list them:
+第一步获取所有统计名称并列出来:
 
 .. code-block:: c
 
@@ -457,9 +412,8 @@ First step is to get all statistics names and list them:
         printf("%s: %"PRIu64"\n", xstats_names[i].name, values[i]);
     }
 
-The application has access to the names of all of the statistics that the PMD
-exposes. The application can decide which statistics are of interest, cache the
-ids of those statistics by looking up the name as follows:
+应用已经获得了PMD暴露的所有统计项名称。应用可以决定哪些统计项是感兴趣的，
+并通过这些统计项名称查询并缓存id:
 
 .. code-block:: c
 
@@ -476,10 +430,8 @@ ids of those statistics by looking up the name as follows:
         goto err;
     }
 
-The API provides flexibility to the application so that it can look up multiple
-statistics using an array containing multiple ``id`` numbers. This reduces the
-function call overhead of retrieving statistics, and makes lookup of multiple
-statistics simpler for the application.
+API给应用提供了极大灵活性，因此应用可以通过 ``id`` 数组查询多个统计项。
+这可以降低获取统计项的函数调用开销，并使应用的多统计项查询更加容易。
 
 .. code-block:: c
 
@@ -497,9 +449,8 @@ statistics simpler for the application.
     }
 
 
-This array lookup API for xstats allows the application create multiple
-"groups" of statistics, and look up the values of those IDs using a single API
-call. As an end result, the application is able to achieve its goal of
-monitoring a single statistic ("rx_errors" in this case), and if that shows
-packets being dropped, it can easily retrieve a "set" of statistics using the
-IDs array parameter to ``rte_eth_xstats_get_by_id`` function.
+扩展统计API的成组查询允许应用创建“统计组”，统计组里的这些ID对应的值使用一个API调用即可查询到。
+最终，应用可以通过以下方式达成目标，应用先不断监测单个统计项(本例中就是"rx_errors")，
+如果该统计项显示出有丢包发生，则应用通过给函数``rte_eth_xstats_get_by_id`` 传递一组统计项ID，
+从而获取更多的统计信息。
+
