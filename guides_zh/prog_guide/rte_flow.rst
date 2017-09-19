@@ -41,25 +41,20 @@
 
 该API中所有符号名都是以 *rte_flow* 为前缀，并且定义在 ``rte_flow.h`` 文件中。
 
-- Matching can be performed on packet data (protocol headers, payload) and
-  properties (e.g. associated physical port, virtual device function ID).
+- 可以匹配的对象有包数据(协议头，负载)和属性(比如，物理网口，虚拟设备功能ID)
 
-- Possible operations include dropping traffic, diverting it to specific
-  queues, to virtual/physical device functions or ports, performing tunnel
-  offloads, adding marks and so on.
+- 操作有丢弃包，传递到指定队列，传递到虚拟/物理设备处理函数或者端口，
+  执行隧道卸载(tunnel offloads)，增加标签等。
 
-It is slightly higher-level than the legacy filtering framework which it
-encompasses and supersedes (including all functions and filter types) in
-order to expose a single interface with an unambiguous behavior that is
-common to all poll-mode drivers (PMDs).
+该API是用来替换旧过滤框架(其包含了旧框架所有功能和过滤类型)的，比旧过滤框架更高级一些。
+该API为所有PMD提供了清楚且通用的使用接口。
 
-Several methods to migrate existing applications are described in `API
-migration`_.
+旧应用中API更新方法 `API 更新`_。
 
-Flow rule
+流规则
 ---------
 
-Description
+描述
 ~~~~~~~~~~~
 
 A flow rule is the combination of attributes with a matching pattern and a
