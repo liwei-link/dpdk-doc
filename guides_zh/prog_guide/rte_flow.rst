@@ -36,7 +36,7 @@
 综述
 --------
 
-该API提供了通用的硬件配置方法，使硬件能够根据用于定义的规则匹配特定出入流量，
+该API提供了通用的硬件配置方法，使硬件能够根据用于定义的规则匹配特定出入口流量，
 改变硬件工作方式和查询相关计数器。
 
 该API中所有符号名都是以 *rte_flow* 为前缀，并且定义在 ``rte_flow.h`` 文件中。
@@ -49,7 +49,7 @@
 该API是用来替换旧过滤框架(其包含了旧框架所有功能和过滤类型)的，比旧过滤框架更高级一些。
 该API为所有PMD提供了清楚且通用的使用接口。
 
-旧应用中API更新方法 `API 更新`_。
+旧应用中API更新方法，参考 `API migration`_。
 
 流规则
 ---------
@@ -57,81 +57,55 @@
 描述
 ~~~~~~~~~~~
 
-A flow rule is the combination of attributes with a matching pattern and a
-list of actions. Flow rules form the basis of this API.
+流规则是规则属性的组合，规则属性包括匹配模式和动作列表。流规则构成了该API的基础。
 
-Flow rules can have several distinct actions (such as counting,
-encapsulating, decapsulating before redirecting packets to a particular
-queue, etc.), instead of relying on several rules to achieve this and having
-applications deal with hardware implementation details regarding their
-order.
+一个流规则能包含多个不同的动作(如，计数，转发前封包和解包)，
+不需要多个流规则来实现多个动作。
+也不需要应用处理不同动作顺序的硬件实现细节。
 
-Support for different priority levels on a rule basis is provided, for
-example in order to force a more specific rule to come before a more generic
-one for packets matched by both. However hardware support for more than a
-single priority level cannot be guaranteed. When supported, the number of
-available priority levels is usually low, which is why they can also be
-implemented in software by PMDs (e.g. missing priority levels may be
-emulated by reordering rules).
+流规则支持优先级，比如一个包匹配两个流规则，那么优先级高的规则会被优先处理。
+但是，无法保证硬件支持多优先级。当支持时，可用的优先级往往比较少，
+这就是为什么优先级可以有PMD在软件层面实现(比如可以通过重新排序规则来模拟)。
 
-In order to remain as hardware-agnostic as possible, by default all rules
-are considered to have the same priority, which means that the order between
-overlapping rules (when a packet is matched by several filters) is
-undefined.
+为了尽量保持硬件无关性，默认认为所有规则有相同的优先级，
+也就是重叠规则(一个包匹配多个过滤器)的动作执行顺序未定义。
 
-PMDs may refuse to create overlapping rules at a given priority level when
-they can be detected (e.g. if a pattern matches an existing filter).
+PMD可以拒绝在同一个优先级上创建重叠规则(比如，匹配模式已存在)。
 
-Thus predictable results for a given priority level can only be achieved
-with non-overlapping rules, using perfect matching on all protocol layers.
+因此在给定优先级上没有重叠规则时，其结果是可预见的。这样的规则在所有协议层都可以完美工作。
 
-Flow rules can also be grouped, the flow rule priority is specific to the
-group they belong to. All flow rules in a given group are thus processed
-either before or after another group.
+流规则也可以分组，流规则优先级被分配到他们所属的组上。因此，
+给定组内的流规则要么在其他组的前面处理，要么在其他组后面处理。
 
-Support for multiple actions per rule may be implemented internally on top
-of non-default hardware priorities, as a result both features may not be
-simultaneously available to applications.
+在内部，一个规则多动作的支持可能是基于非默认硬件优先级实现的，
+因此这两种特性可能不会同时对应用可用。
 
-Considering that allowed pattern/actions combinations cannot be known in
-advance and would result in an impractically large number of capabilities to
-expose, a method is provided to validate a given rule from the current
-device configuration state.
+考虑到设备允许的模式/动作组合不能预先知道，会导致暴露大量无用的功能。
+DPDK提供了从当设备配置状态中验证给定规则的方法。
 
-This enables applications to check if the rule types they need is supported
-at initialization time, before starting their data path. This method can be
-used anytime, its only requirement being that the resources needed by a rule
-should exist (e.g. a target RX queue should be configured first).
+这可以让应用在初始化时(启动数据路径前)检查它需要的规则类型是否支持。
+该方法可以在任何时候使用，前提条件是规则所需的资源应该存在(比如，一个目标RX队列应先被配置好)
 
-Each defined rule is associated with an opaque handle managed by the PMD,
-applications are responsible for keeping it. These can be used for queries
-and rules management, such as retrieving counters or other data and
-destroying them.
+每一个定义好的规则都和由PMD管理的不透明句柄(opaque handle)相关联，应用应该维护它。
+这些句柄可以用于查询和管理规则，比如获取计数器或其他数据，销毁规则。
 
-To avoid resource leaks on the PMD side, handles must be explicitly
-destroyed by the application before releasing associated resources such as
-queues and ports.
+为避免在PMD侧出现资源泄露，应用在释放相关资源(如，队列和端口)前必须明确销毁句柄。
 
-The following sections cover:
+以下章节包括:
 
-- **Attributes** (represented by ``struct rte_flow_attr``): properties of a
-  flow rule such as its direction (ingress or egress) and priority.
+- **属性** (由 ``struct rte_flow_attr`` 表示): 流规则的属性，比如方向(入口或出口)和优先级。
 
-- **Pattern item** (represented by ``struct rte_flow_item``): part of a
-  matching pattern that either matches specific packet data or traffic
-  properties. It can also describe properties of the pattern itself, such as
-  inverted matching.
+- **模式项** (由 ``struct rte_flow_item`` 表示): 匹配模式的一部分，匹配对象是特定包数据或者流量属性。
+  它描述了模式本身的属性，比如反向匹配。
 
-- **Matching pattern**: traffic properties to look for, a combination of any
-  number of items.
+- **匹配模式**: 要查找的流量属性，任意项组合。
 
-- **Actions** (represented by ``struct rte_flow_action``): operations to
-  perform whenever a packet is matched by a pattern.
+- **动作** (由 ``struct rte_flow_action`` 表示): 包匹配时要执行的操作。
 
-Attributes
+属性
 ~~~~~~~~~~
 
-Attribute: Group
+属性: 组
 ^^^^^^^^^^^^^^^^
 
 Flow rules can be grouped by assigning them a common group number. Lower
@@ -144,7 +118,7 @@ type possibly allowed in a given group).
 
 Note that support for more than a single group is not guaranteed.
 
-Attribute: Priority
+属性: 优先级
 ^^^^^^^^^^^^^^^^^^^
 
 A priority level can be assigned to a flow rule. Like groups, lower values
@@ -163,7 +137,7 @@ duplicated or even cause unrecoverable errors.
 
 Note that support for more than a single priority level is not guaranteed.
 
-Attribute: Traffic direction
+属性: 流量方向
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Flow rules can apply to inbound and/or outbound traffic (ingress/egress).
@@ -174,7 +148,7 @@ directions. At least one direction must be specified.
 Specifying both directions at once for a given rule is not recommended but
 may be valid in a few cases (e.g. shared counters).
 
-Pattern item
+模式项(Pattern item)
 ~~~~~~~~~~~~
 
 Pattern items fall in two categories:
@@ -253,7 +227,7 @@ with the following properties are thus matched:
 - ``dst``: ``??:??:??:??:01``
 - ``type``: ``0x????``
 
-Matching pattern
+匹配模式
 ~~~~~~~~~~~~~~~~
 
 A pattern is formed by stacking items starting from the lowest protocol
@@ -899,7 +873,7 @@ Matches a GRE header.
 - ``protocol``: protocol type.
 - Default ``mask`` matches protocol only.
 
-Actions
+动作
 ~~~~~~~
 
 Each possible action is represented by a type. Some have associated
@@ -1014,13 +988,13 @@ As previously described, only the last action of a given type found in the
 list is taken into account. The above example also shows that VOID is
 ignored.
 
-Action types
+动作类型
 ~~~~~~~~~~~~
 
 Common action types are described in this section. Like pattern item types,
 this list is not exhaustive as new actions will be added in the future.
 
-Action: ``END``
+动作: ``END``
 ^^^^^^^^^^^^^^^
 
 End marker for action lists. Prevents further processing of actions, thereby
@@ -1040,7 +1014,7 @@ ending the list.
    | no properties |
    +---------------+
 
-Action: ``VOID``
+动作: ``VOID``
 ^^^^^^^^^^^^^^^^
 
 Used as a placeholder for convenience. It is ignored and simply discarded by
@@ -1059,7 +1033,7 @@ PMDs.
    | no properties |
    +---------------+
 
-Action: ``PASSTHRU``
+动作: ``PASSTHRU``
 ^^^^^^^^^^^^^^^^^^^^
 
 Leaves packets up for additional processing by subsequent flow rules. This
@@ -1095,7 +1069,7 @@ flow rules:
    | 2     | END                        |
    +-------+----------------------------+
 
-Action: ``MARK``
+动作: ``MARK``
 ^^^^^^^^^^^^^^^^
 
 Attaches an integer value to packets and sets ``PKT_RX_FDIR`` and
@@ -1115,7 +1089,7 @@ depends on the underlying implementation. It is returned in the
    | ``id`` | integer value to return with packets |
    +--------+--------------------------------------+
 
-Action: ``FLAG``
+动作: ``FLAG``
 ^^^^^^^^^^^^^^^^
 
 Flags packets. Similar to `Action: MARK`_ without a specific value; only
@@ -1133,7 +1107,7 @@ sets the ``PKT_RX_FDIR`` mbuf flag.
    | no properties |
    +---------------+
 
-Action: ``QUEUE``
+动作: ``QUEUE``
 ^^^^^^^^^^^^^^^^^
 
 Assigns packets to a given queue index.
@@ -1150,7 +1124,7 @@ Assigns packets to a given queue index.
    | ``index`` | queue index to use |
    +-----------+--------------------+
 
-Action: ``DROP``
+动作: ``DROP``
 ^^^^^^^^^^^^^^^^
 
 Drop packets.
@@ -1169,7 +1143,7 @@ Drop packets.
    | no properties |
    +---------------+
 
-Action: ``COUNT``
+动作: ``COUNT``
 ^^^^^^^^^^^^^^^^^
 
 Enables counters for this rule.
@@ -1210,7 +1184,7 @@ Query structure to retrieve and reset flow rule counters:
    | ``bytes``     | out | number of bytes through this rule |
    +---------------+-----+-----------------------------------+
 
-Action: ``DUP``
+动作: ``DUP``
 ^^^^^^^^^^^^^^^
 
 Duplicates packets to a given queue index.
@@ -1230,7 +1204,7 @@ actually similar to QUEUE + PASSTHRU.
    | ``index`` | queue index to duplicate packet to |
    +-----------+------------------------------------+
 
-Action: ``RSS``
+动作: ``RSS``
 ^^^^^^^^^^^^^^^
 
 Similar to QUEUE, except RSS is additionally performed on packets to spread
@@ -1256,7 +1230,7 @@ field only, both can be requested simultaneously.
    | ``queue[]``  | queue indices to use         |
    +--------------+------------------------------+
 
-Action: ``PF``
+动作: ``PF``
 ^^^^^^^^^^^^^^
 
 Redirects packets to the physical function (PF) of the current device.
@@ -1274,7 +1248,7 @@ Redirects packets to the physical function (PF) of the current device.
    | no properties |
    +---------------+
 
-Action: ``VF``
+动作: ``VF``
 ^^^^^^^^^^^^^^
 
 Redirects packets to a virtual function (VF) of the current device.
@@ -1323,7 +1297,7 @@ Other action types are planned but are not defined yet. These include the
 ability to alter packet data in several ways, such as performing
 encapsulation/decapsulation of tunnel headers.
 
-Rules management
+规则管理
 ----------------
 
 A rather simple API with few functions is provided to fully manage flow
@@ -1335,7 +1309,7 @@ destroyed.
 
 Flows rules are represented by ``struct rte_flow`` objects.
 
-Validation
+校验
 ~~~~~~~~~~
 
 Given that expressing a definite set of device capabilities is not
@@ -1391,7 +1365,7 @@ Return values:
   succeed if the affected queues or even the entire port are in a stopped
   state (see ``rte_eth_dev_rx_queue_stop()`` and ``rte_eth_dev_stop()``).
 
-Creation
+创建
 ~~~~~~~~
 
 Creating a flow rule is similar to validating one, except the rule is
@@ -1422,7 +1396,7 @@ A valid handle in case of success, NULL otherwise and ``rte_errno`` is set
 to the positive version of one of the error codes defined for
 ``rte_flow_validate()``.
 
-Destruction
+销毁
 ~~~~~~~~~~~
 
 Flow rules destruction is not automatic, and a queue or a port should not be
@@ -1454,7 +1428,7 @@ Return values:
 
 - 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
 
-Flush
+刷新
 ~~~~~
 
 Convenience function to destroy all flow rule handles associated with a
@@ -1479,7 +1453,7 @@ Return values:
 
 - 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
 
-Query
+查询
 ~~~~~
 
 Query an existing flow rule.
@@ -1510,7 +1484,7 @@ Return values:
 
 - 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
 
-Verbose error reporting
+详细错误报告
 -----------------------
 
 The defined *errno* values may not be accurate enough for users or
@@ -1596,7 +1570,7 @@ rules:
   undefined behavior. PMDs aware of this may prevent flow rules creation
   altogether in such cases.
 
-PMD interface
+PMD接口
 -------------
 
 The PMD interface is defined in ``rte_flow_driver.h``. It is not subject to
@@ -1647,7 +1621,7 @@ The following sections provide a few examples of such cases and describe how
 PMDs should handle them, they are based on limitations built into the
 previous APIs.
 
-Global bit-masks
+全局位掩码
 ~~~~~~~~~~~~~~~~
 
 Each flow rule comes with its own, per-layer bit-masks, while hardware may
