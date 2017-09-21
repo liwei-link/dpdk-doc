@@ -108,61 +108,52 @@ DPDK提供了从当设备配置状态中验证给定规则的方法。
 属性: 组
 ^^^^^^^^^^^^^^^^
 
-Flow rules can be grouped by assigning them a common group number. Lower
-values have higher priority. Group 0 has the highest priority.
+可以给流规则指定组号进行分组。组号越小优先级越高。组0拥有最高优先级。
 
-Although optional, applications are encouraged to group similar rules as
-much as possible to fully take advantage of hardware capabilities
-(e.g. optimized matching) and work around limitations (e.g. a single pattern
-type possibly allowed in a given group).
+虽然是可选的，但还是鼓励应用尽可能多的把类似的规则分为一组，
+这样可以充分利用硬件能力(比如，最佳匹配)和解决(打破)限制(比如，一组只能有一个匹配模式)。
 
-Note that support for more than a single group is not guaranteed.
+注意，无法保证对多组的支持。
 
 属性: 优先级
 ^^^^^^^^^^^^^^^^^^^
 
-A priority level can be assigned to a flow rule. Like groups, lower values
-denote higher priority, with 0 as the maximum.
+优先级可以分配给流规则。在规则组中，优先级值越小优先级越高，0是最高的。
 
-A rule with priority 0 in group 8 is always matched after a rule with
-priority 8 in group 0.
+组8中优先级0的规则的优先级总是低于组0中优先级8的规则的。
 
-Group and priority levels are arbitrary and up to the application, they do
-not need to be contiguous nor start from 0, however the maximum number
-varies between devices and may be affected by existing flow rules.
+组和优先级是任意的，并且取决于应用，它们不必是连续的，也不必从0开始。
+但是，不同设备的组和优先级的最大数量可能受已存在的流规则影响。
 
-If a packet is matched by several rules of a given group for a given
-priority level, the outcome is undefined. It can take any path, may be
-duplicated or even cause unrecoverable errors.
+如果一个包匹配多条规则，结果是未定义的。它可能被意处理，
+比如复制，甚至引发不可恢复的错误。
 
-Note that support for more than a single priority level is not guaranteed.
+注意，无法保证对多优先级的支持。
 
 属性: 流量方向
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Flow rules can apply to inbound and/or outbound traffic (ingress/egress).
+流规则可以应用到出口/入口流量。
 
-Several pattern items and actions are valid and can be used in both
-directions. At least one direction must be specified.
+我们至少要为流规则指定一个方向。但不限于一个方向，同一个流规则可以应用到两个方向上。
 
-Specifying both directions at once for a given rule is not recommended but
-may be valid in a few cases (e.g. shared counters).
+不建议同时在两个方向上指定一个规则，但在一些案例中是合理的(比如，共享计数器)
 
 模式项(Pattern item)
 ~~~~~~~~~~~~
 
-Pattern items fall in two categories:
+模式项分为两类:
 
-- Matching protocol headers and packet data (ANY, RAW, ETH, VLAN, IPV4,
-  IPV6, ICMP, UDP, TCP, SCTP, VXLAN, MPLS, GRE and so on), usually
-  associated with a specification structure.
+- 协议头和包数据的匹配 (ANY, RAW, ETH, VLAN, IPV4,
+  IPV6, ICMP, UDP, TCP, SCTP, VXLAN, MPLS, GRE 等), 通常和一个结构体相关。
 
-- Matching meta-data or affecting pattern processing (END, VOID, INVERT, PF,
-  VF, PORT and so on), often without a specification structure.
+- 元数据和模式处理匹配 (END, VOID, INVERT, PF,
+  VF, PORT 等), 通常没有结构体与之相关。
 
 Item specification structures are used to match specific values among
 protocol fields (or item properties). Documentation describes for each item
 whether they are associated with one and their type name if so.
+模式项详情结构体用于
 
 Up to three structures of the same type can be set for a given item:
 
