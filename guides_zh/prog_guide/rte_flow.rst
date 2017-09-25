@@ -150,48 +150,40 @@ DPDK提供了从当设备配置状态中验证给定规则的方法。
 - 元数据和模式处理匹配 (END, VOID, INVERT, PF,
   VF, PORT 等), 通常没有结构体与之相关。
 
-Item specification structures are used to match specific values among
-protocol fields (or item properties). Documentation describes for each item
-whether they are associated with one and their type name if so.
-模式项详情结构体用于
+模式项详情结构体用于匹配指定的协议(或模式的属性)。文档中会描述每个模式项。
 
-Up to three structures of the same type can be set for a given item:
+目前，一个模式项类型可以有三个相关结构体:
 
-- ``spec``: values to match (e.g. a given IPv4 address).
+- ``spec``: 匹配值 (如，IPv4地址)。
 
-- ``last``: upper bound for an inclusive range with corresponding fields in
-  ``spec``.
+- ``last``: ``spec`` 字段的范围上限。
 
-- ``mask``: bit-mask applied to both ``spec`` and ``last`` whose purpose is
-  to distinguish the values to take into account and/or partially mask them
-  out (e.g. in order to match an IPv4 address prefix).
+- ``mask``: 位掩码应用于 ``spec`` 和 ``last`` ，目的是区分哪些值算在内或者哪些值排除在外。
+  (比如，用于匹配IPv4前缀)。
 
-Usage restrictions and expected behavior:
+使用限制和规范:
 
-- Setting either ``mask`` or ``last`` without ``spec`` is an error.
+- 只设置 ``mask`` 或者 ``last`` ，不设置 ``spec`` 是错误的。
 
-- Field values in ``last`` which are either 0 or equal to the corresponding
-  values in ``spec`` are ignored; they do not generate a range. Nonzero
-  values lower than those in ``spec`` are not supported.
+- ``last`` 等于0或者等于相关的  ``spec`` 会被忽略；因为这无法指定一个范围。
+  不支持比 ``spec`` 小的非零值。
 
-- Setting ``spec`` and optionally ``last`` without ``mask`` causes the PMD
-  to use the default mask defined for that item (defined as
-  ``rte_flow_item_{name}_mask`` constants).
+- 设置 ``spec`` 而不设置 ``mask`` ，PMD会使用该模式项默认的mask
+  (常量 ``rte_flow_item_{name}_mask`` )。
+  
 
-- Not setting any of them (assuming item type allows it) is equivalent to
-  providing an empty (zeroed) ``mask`` for broad (nonspecific) matching.
+- 当这些都不设置(假设模式项类型支持)时等价于空(零) ``mask`` 宽(未指定)匹配。
 
-- ``mask`` is a simple bit-mask applied before interpreting the contents of
-  ``spec`` and ``last``, which may yield unexpected results if not used
-  carefully. For example, if for an IPv4 address field, ``spec`` provides
-  *10.1.2.3*, ``last`` provides *10.3.4.5* and ``mask`` provides
-  *255.255.0.0*, the effective range becomes *10.1.0.0* to *10.3.255.255*.
+- ``mask`` 是一个简单的位掩码，在解析 ``spec`` 和 ``last`` 内容前应用。
+  (如使用不当会产生不可预期的结果) 比如，对于IPv4地址，``spec`` 为 *10.1.2.3*，
+  ``last`` 为 *10.3.4.5* , ``mask`` 为 *255.255.0.0* ，
+  那么最终有效范围变成 *10.1.0.0* to *10.3.255.255*。
 
-Example of an item specification matching an Ethernet header:
+模式项匹配以太网头的例子:
 
 .. _table_rte_flow_pattern_item_example:
 
-.. table:: Ethernet item
+.. table:: Ethernet 项
 
    +----------+----------+--------------------+
    | Field    | Subfield | Value              |
@@ -202,7 +194,7 @@ Example of an item specification matching an Ethernet header:
    |          +----------+--------------------+
    |          | ``type`` | ``0x22aa``         |
    +----------+----------+--------------------+
-   | ``last`` | unspecified                   |
+   | ``last`` | 未指定                        |
    +----------+----------+--------------------+
    | ``mask`` | ``src``  | ``00:ff:ff:ff:00`` |
    |          +----------+--------------------+
@@ -211,8 +203,7 @@ Example of an item specification matching an Ethernet header:
    |          | ``type`` | ``0x0000``         |
    +----------+----------+--------------------+
 
-Non-masked bits stand for any value (shown as ``?`` below), Ethernet headers
-with the following properties are thus matched:
+无掩码位代表可以是任意值(如下的 ``?``)，因此，像下面的以太网头可以匹配到:
 
 - ``src``: ``??:01:02:03:??``
 - ``dst``: ``??:??:??:??:01``
@@ -221,14 +212,12 @@ with the following properties are thus matched:
 匹配模式
 ~~~~~~~~~~~~~~~~
 
-A pattern is formed by stacking items starting from the lowest protocol
-layer to match. This stacking restriction does not apply to meta items which
-can be placed anywhere in the stack without affecting the meaning of the
-resulting pattern.
+匹配模式中与协议相关的模式项是从最底层协议开始匹配的(组成一个模式项栈)。该限制不会应用到元模式项，
+元模式项可以放在模式中任何位置，并且不会影响到最终的匹配模式。
 
-Patterns are terminated by END items.
+匹配模式由END项终结。
 
-Examples:
+例子:
 
 .. _table_rte_flow_tcpv4_as_l4:
 
@@ -298,9 +287,8 @@ Examples:
    | 7     | END      |
    +-------+----------+
 
-The above example shows how meta items do not affect packet data matching
-items, as long as those remain stacked properly. The resulting matching
-pattern is identical to "TCPv4 as L4".
+上面的例子说明了只要保持包数据模式项的正确的叠放顺序，
+那么元模式项是不会影响包数据模式项的。所以上面的例子中匹配模式和"TCPv4 as L4"一样。
 
 .. _table_rte_flow_udpv6_anywhere:
 
@@ -316,17 +304,14 @@ pattern is identical to "TCPv4 as L4".
    | 2     | END  |
    +-------+------+
 
-If supported by the PMD, omitting one or several protocol layers at the
-bottom of the stack as in the above example (missing an Ethernet
-specification) enables looking up anywhere in packets.
+如果PMD支持，省略栈底的一个或几个协议层(如上例未指定以太网层)，
+则会查找包中任意位置。
 
-It is unspecified whether the payload of supported encapsulations
-(e.g. VXLAN payload) is matched by such a pattern, which may apply to inner,
-outer or both packets.
+这种情况下未指定封装负载(比如，VXLAN负载)要匹配哪种包，可能是封装的内部包，外部包或者两者都是。
 
 .. _table_rte_flow_invalid_l3:
 
-.. table:: Invalid, missing L3
+.. table:: 无效, 缺少L3协议
 
    +-------+----------+
    | Index | Item     |
@@ -338,27 +323,23 @@ outer or both packets.
    | 2     | END      |
    +-------+----------+
 
-The above pattern is invalid due to a missing L3 specification between L2
-(Ethernet) and L4 (UDP). Doing so is only allowed at the bottom and at the
-top of the stack.
+上面的匹配模式中因为在L2(Ethernet)和L4(UDP)之间未指定L3协议，所以是无效的。
+层级的缺失只能发生在栈顶或栈底。
 
-Meta item types
+元模式项类型
 ~~~~~~~~~~~~~~~
 
-They match meta-data or affect pattern processing instead of matching packet
-data directly, most of them do not need a specification structure. This
-particularity allows them to be specified anywhere in the stack without
-causing any side effect.
+元模式项匹配的是元数据，或者影响模式处理而不是直接匹配包数据，大多数的元模式项不需要指定数据结构。
+这个例外可以让元模式项处在栈中任何位置并不会产生副作用。
 
-Item: ``END``
+元模式项: ``END``
 ^^^^^^^^^^^^^
 
-End marker for item lists. Prevents further processing of items, thereby
-ending the pattern.
+模式项列表的结束标志。防止超范围的模式项处理，从而结束模式匹配。
 
-- Its numeric value is 0 for convenience.
-- PMD support is mandatory.
-- ``spec``, ``last`` and ``mask`` are ignored.
+- 为了方便起见，它的数值为0。
+- PMD必须支持。
+- 忽略 ``spec``, ``last`` 和 ``mask``。
 
 .. _table_rte_flow_item_end:
 
@@ -374,14 +355,13 @@ ending the pattern.
    | ``mask`` | ignored |
    +----------+---------+
 
-Item: ``VOID``
+元模式项: ``VOID``
 ^^^^^^^^^^^^^^
 
-Used as a placeholder for convenience. It is ignored and simply discarded by
-PMDs.
+该元模式项是个占位符。PMD在处理时会忽略并丢弃该元模式项。
 
-- PMD support is mandatory.
-- ``spec``, ``last`` and ``mask`` are ignored.
+- PMD必须支持。
+- 忽略 ``spec``, ``last`` 和 ``mask``。
 
 .. _table_rte_flow_item_void:
 
@@ -397,8 +377,7 @@ PMDs.
    | ``mask`` | ignored |
    +----------+---------+
 
-One usage example for this type is generating rules that share a common
-prefix quickly without reallocating memory, only by updating item types:
+该类型的一个使用案例是流规则快速共享通用前缀，不用重新申请内存，仅更新模式项类型:
 
 .. _table_rte_flow_item_void_example:
 
@@ -420,12 +399,12 @@ prefix quickly without reallocating memory, only by updating item types:
    | 5     | END                |
    +-------+--------------------+
 
-Item: ``INVERT``
+元模式项: ``INVERT``
 ^^^^^^^^^^^^^^^^
 
-Inverted matching, i.e. process packets that do not match the pattern.
+反向匹配, 也就是处理与该模式不匹配的包。
 
-- ``spec``, ``last`` and ``mask`` are ignored.
+- 忽略 ``spec``, ``last`` and ``mask``。
 
 .. _table_rte_flow_item_invert:
 
@@ -441,7 +420,7 @@ Inverted matching, i.e. process packets that do not match the pattern.
    | ``mask`` | ignored |
    +----------+---------+
 
-Usage example, matching non-TCPv4 packets only:
+使用案例，仅匹配非TCPv4包:
 
 .. _table_rte_flow_item_invert_example:
 
@@ -461,21 +440,19 @@ Usage example, matching non-TCPv4 packets only:
    | 4     | END      |
    +-------+----------+
 
-Item: ``PF``
+元模式项: ``PF``
 ^^^^^^^^^^^^
 
-Matches packets addressed to the physical function of the device.
+匹配发送到设备物理功能的包。
 
-If the underlying device function differs from the one that would normally
-receive the matched traffic, specifying this item prevents it from reaching
-that device unless the flow rule contains a `Action: PF`_. Packets are not
-duplicated between device instances by default.
+如果底层设备功能无法正常接收匹配流量，则使用该元模式项可以防止流量到达该设备，
+除非流规则包含 `Action: PF`_ 。默认数据包不会在设备实例间复制。
 
-- Likely to return an error or never match any traffic if applied to a VF
-  device.
-- Can be combined with any number of `Item: VF`_ to match both PF and VF
-  traffic.
-- ``spec``, ``last`` and ``mask`` must not be set.
+- 该元模式项如果应用到VF设备很可能会返回错误或者根本不会匹配到任何流量。
+
+- 可以和任何数量的  `Item: VF`_ 组合匹配PF和VF流量。
+  
+- ``spec``, ``last`` 和 ``mask`` 不允许设置。
 
 .. _table_rte_flow_item_pf:
 
@@ -491,22 +468,27 @@ duplicated between device instances by default.
    | ``mask`` | unset |
    +----------+-------+
 
-Item: ``VF``
+元模式项: ``VF``
 ^^^^^^^^^^^^
 
-Matches packets addressed to a virtual function ID of the device.
+匹配发送到设备虚拟功能的包。
 
-If the underlying device function differs from the one that would normally
-receive the matched traffic, specifying this item prevents it from reaching
-that device unless the flow rule contains a `Action: VF`_. Packets are not
-duplicated between device instances by default.
+如果底层设备功能无法正常接收匹配流量，则使用该元模式项可以防止流量到达该设备，
+除非流规则包含 `Action: VF`_ 。默认数据包不会在设备实例间复制。
 
-- Likely to return an error or never match any traffic if this causes a VF
-  device to match traffic addressed to a different VF.
-- Can be specified multiple times to match traffic addressed to several VF
-  IDs.
-- Can be combined with a PF item to match both PF and VF traffic.
-- Default ``mask`` matches any VF ID.
+- 该元模式项如果应用到VF设备很可能会返回错误或者根本不会匹配到任何流量。
+
+- 可以和任何数量的  `Item: VF`_ 组合匹配PF和VF流量。
+  
+- ``spec``, ``last`` 和 ``mask`` 不允许设置。
+
+- 如果让VF设备去匹配发送到不同VF上的流量时，很可能会返回错误或者根本不会匹配到任何流量。
+  
+- 可以通过多次指定该元模式项去匹配发送到多个VF上的流量。
+  
+- 可以和PF模式项组合匹配FP和VF流量。
+
+- 默认 ``mask`` 匹配任何VF。
 
 .. _table_rte_flow_item_vf:
 
@@ -517,30 +499,25 @@ duplicated between device instances by default.
    +==========+==========+===========================+
    | ``spec`` | ``id``   | destination VF ID         |
    +----------+----------+---------------------------+
-   | ``last`` | ``id``   | upper range value         |
+   | ``last`` | ``id``   | 上限                      |
    +----------+----------+---------------------------+
-   | ``mask`` | ``id``   | zeroed to match any VF ID |
+   | ``mask`` | ``id``   | 0值匹配任何VF ID          |
    +----------+----------+---------------------------+
 
-Item: ``PORT``
+元模式项: ``PORT``
 ^^^^^^^^^^^^^^
 
-Matches packets coming from the specified physical port of the underlying
-device.
+匹配来自底层设备物理端口的数据包。
 
-The first PORT item overrides the physical port normally associated with the
-specified DPDK input port (port_id). This item can be provided several times
-to match additional physical ports.
+第一个PORT模式项覆盖了和DPDK相关联(port_id)的物理端口。
+可以提供多个该模式项匹配多个物理端口。
 
-Note that physical ports are not necessarily tied to DPDK input ports
-(port_id) when those are not under DPDK control. Possible values are
-specific to each device, they are not necessarily indexed from zero and may
-not be contiguous.
+注意，当物理端口不在DPDK控制下时，就不必绑定到DPDK输入端口(port_id)上。
+每个设备会有一个port_id，他们不必从0开始，也可能不是连续的。
 
-As a device property, the list of allowed values as well as the value
-associated with a port_id should be retrieved by other means.
+作为设备的属性，合法的端口号应该通过其他方法获得。
 
-- Default ``mask`` matches any port index.
+- 默认 ``mask`` 匹配任何端口号。
 
 .. _table_rte_flow_item_port:
 
@@ -549,33 +526,29 @@ associated with a port_id should be retrieved by other means.
    +----------+-----------+--------------------------------+
    | Field    | Subfield  | Value                          |
    +==========+===========+================================+
-   | ``spec`` | ``index`` | physical port index            |
+   | ``spec`` | ``index`` | 物理端口号                     |
    +----------+-----------+--------------------------------+
-   | ``last`` | ``index`` | upper range value              |
+   | ``last`` | ``index`` | 上限                           |
    +----------+-----------+--------------------------------+
-   | ``mask`` | ``index`` | zeroed to match any port index |
+   | ``mask`` | ``index`` | 0值匹配任何端口号              |
    +----------+-----------+--------------------------------+
 
-Data matching item types
+数据匹配项类型
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Most of these are basically protocol header definitions with associated
-bit-masks. They must be specified (stacked) from lowest to highest protocol
-layer to form a matching pattern.
+这些类型基本上都是协议头和相关位掩码的定义。这些类型必须按照从最低到最高协议层排列成一个栈，
+组成一个匹配模式。
 
-The following list is not exhaustive, new protocols will be added in the
-future.
+下面的列表并不是全面的，未来可能会有新协议加入进来。
 
-Item: ``ANY``
+数据模式项: ``ANY``
 ^^^^^^^^^^^^^
 
-Matches any protocol in place of the current layer, a single ANY may also
-stand for several protocol layers.
+匹配任何协议，而不是仅匹配当前协议层，一个单个的ANY也可以代表多个协议层。
 
-This is usually specified as the first pattern item when looking for a
-protocol anywhere in a packet.
+当在包中任意层查找一个协议时，``ANY`` 通常作为第一个模式项。
 
-- Default ``mask`` stands for any number of layers.
+- 默认 ``mask`` 代表任意层数。
 
 .. _table_rte_flow_item_any:
 
@@ -584,20 +557,19 @@ protocol anywhere in a packet.
    +----------+----------+--------------------------------------+
    | Field    | Subfield | Value                                |
    +==========+==========+======================================+
-   | ``spec`` | ``num``  | number of layers covered             |
+   | ``spec`` | ``num``  | 覆盖的层数                           |
    +----------+----------+--------------------------------------+
-   | ``last`` | ``num``  | upper range value                    |
+   | ``last`` | ``num``  | 上限                                 |
    +----------+----------+--------------------------------------+
-   | ``mask`` | ``num``  | zeroed to cover any number of layers |
+   | ``mask`` | ``num``  | 0代表任意层数                        |
    +----------+----------+--------------------------------------+
 
-Example for VXLAN TCP payload matching regardless of outer L3 (IPv4 or IPv6)
-and L4 (UDP) both matched by the first ANY specification, and inner L3 (IPv4
-or IPv6) matched by the second ANY specification:
+VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第一个 ANY 匹配。
+内部的L3 (IPv4 or IPv6)由第二个 ANY 匹配:
 
 .. _table_rte_flow_item_any_example:
 
-.. table:: TCP in VXLAN with wildcards
+.. table:: 使用 ANY 通配符匹配VXLAN中的TCP
 
    +-------+------+----------+----------+-------+
    | Index | Item | Field    | Subfield | Value |
@@ -617,7 +589,7 @@ or IPv6) matched by the second ANY specification:
    | 6     | END                                |
    +-------+------------------------------------+
 
-Item: ``RAW``
+数据模式项: ``RAW``
 ^^^^^^^^^^^^^
 
 Matches a byte string of a given length at a given offset.
@@ -739,7 +711,7 @@ Note that matching subsequent pattern items would resume after "baz", not
 "bar" since matching is always performed after the previous item of the
 stack.
 
-Item: ``ETH``
+数据模式项: ``ETH``
 ^^^^^^^^^^^^^
 
 Matches an Ethernet header.
@@ -749,7 +721,7 @@ Matches an Ethernet header.
 - ``type``: EtherType.
 - Default ``mask`` matches destination and source addresses only.
 
-Item: ``VLAN``
+数据模式项: ``VLAN``
 ^^^^^^^^^^^^^^
 
 Matches an 802.1Q/ad VLAN tag.
@@ -758,7 +730,7 @@ Matches an 802.1Q/ad VLAN tag.
 - ``tci``: tag control information.
 - Default ``mask`` matches TCI only.
 
-Item: ``IPV4``
+数据模式项: ``IPV4``
 ^^^^^^^^^^^^^^
 
 Matches an IPv4 header.
@@ -768,7 +740,7 @@ Note: IPv4 options are handled by dedicated pattern items.
 - ``hdr``: IPv4 header definition (``rte_ip.h``).
 - Default ``mask`` matches source and destination addresses only.
 
-Item: ``IPV6``
+数据模式项: ``IPV6``
 ^^^^^^^^^^^^^^
 
 Matches an IPv6 header.
@@ -778,7 +750,7 @@ Note: IPv6 options are handled by dedicated pattern items.
 - ``hdr``: IPv6 header definition (``rte_ip.h``).
 - Default ``mask`` matches source and destination addresses only.
 
-Item: ``ICMP``
+数据模式项: ``ICMP``
 ^^^^^^^^^^^^^^
 
 Matches an ICMP header.
@@ -786,7 +758,7 @@ Matches an ICMP header.
 - ``hdr``: ICMP header definition (``rte_icmp.h``).
 - Default ``mask`` matches ICMP type and code only.
 
-Item: ``UDP``
+数据模式项: ``UDP``
 ^^^^^^^^^^^^^
 
 Matches a UDP header.
@@ -794,7 +766,7 @@ Matches a UDP header.
 - ``hdr``: UDP header definition (``rte_udp.h``).
 - Default ``mask`` matches source and destination ports only.
 
-Item: ``TCP``
+数据模式项: ``TCP``
 ^^^^^^^^^^^^^
 
 Matches a TCP header.
@@ -802,7 +774,7 @@ Matches a TCP header.
 - ``hdr``: TCP header definition (``rte_tcp.h``).
 - Default ``mask`` matches source and destination ports only.
 
-Item: ``SCTP``
+数据模式项: ``SCTP``
 ^^^^^^^^^^^^^^
 
 Matches a SCTP header.
@@ -810,7 +782,7 @@ Matches a SCTP header.
 - ``hdr``: SCTP header definition (``rte_sctp.h``).
 - Default ``mask`` matches source and destination ports only.
 
-Item: ``VXLAN``
+数据模式项: ``VXLAN``
 ^^^^^^^^^^^^^^^
 
 Matches a VXLAN header (RFC 7348).
@@ -821,7 +793,7 @@ Matches a VXLAN header (RFC 7348).
 - ``rsvd1``: reserved, normally 0x00.
 - Default ``mask`` matches VNI only.
 
-Item: ``E_TAG``
+数据模式项: ``E_TAG``
 ^^^^^^^^^^^^^^^
 
 Matches an IEEE 802.1BR E-Tag header.
@@ -834,7 +806,7 @@ Matches an IEEE 802.1BR E-Tag header.
 - ``ecid_e``: E-CID ext.
 - Default ``mask`` simultaneously matches GRP and E-CID base.
 
-Item: ``NVGRE``
+数据模式项: ``NVGRE``
 ^^^^^^^^^^^^^^^
 
 Matches a NVGRE header (RFC 7637).
@@ -847,7 +819,7 @@ Matches a NVGRE header (RFC 7637).
 - ``flow_id``: flow ID.
 - Default ``mask`` matches TNI only.
 
-Item: ``MPLS``
+数据模式项: ``MPLS``
 ^^^^^^^^^^^^^^
 
 Matches a MPLS header.
@@ -855,7 +827,7 @@ Matches a MPLS header.
 - ``label_tc_s_ttl``: label, TC, Bottom of Stack and TTL.
 - Default ``mask`` matches label only.
 
-Item: ``GRE``
+数据模式项: ``GRE``
 ^^^^^^^^^^^^^^
 
 Matches a GRE header.
