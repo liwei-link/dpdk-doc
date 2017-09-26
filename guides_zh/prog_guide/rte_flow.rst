@@ -832,33 +832,26 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 动作
 ~~~~~~~
 
-Each possible action is represented by a type. Some have associated
-configuration structures. Several actions combined in a list can be affected
-to a flow rule. That list is not ordered.
+每种动作都由一个类型表示。有的动作有配置结构。合并在一个列表中的多个动作能够受到一个流规则的影响。
+该列表是无序的。
 
-They fall in three categories:
+有三类:
 
-- Terminating actions (such as QUEUE, DROP, RSS, PF, VF) that prevent
-  processing matched packets by subsequent flow rules, unless overridden
-  with PASSTHRU.
+- 终止动作 (比如 QUEUE, DROP, RSS, PF, VF)终止后续流规则处理匹配包，除非用 PASSTHRU 覆盖。
 
-- Non-terminating actions (PASSTHRU, DUP) that leave matched packets up for
-  additional processing by subsequent flow rules.
+- 非终止动作(PASSTHRU, DUP)把匹配的包留给后续流规则处理。
 
-- Other non-terminating meta actions that do not affect the fate of packets
-  (END, VOID, MARK, FLAG, COUNT).
+- 其他非终止类元动作，这类动作不会影响到包的处理(END, VOID, MARK, FLAG, COUNT)。
 
-When several actions are combined in a flow rule, they should all have
-different types (e.g. dropping a packet twice is not possible).
+当多个动作合并到一个流规则中时，它们应该是不同类型的(比如，同一个包不能丢弃两次)。
 
-Only the last action of a given type is taken into account. PMDs still
-perform error checking on the entire list.
+对于给定的类型只有最后一个动作有效。但PMD仍会对整个表执行错误检查。
 
-Like matching patterns, action lists are terminated by END items.
+和匹配模式类似，动作列表也是有 END 项结束的。
 
-*Note that PASSTHRU is the only action able to override a terminating rule.*
+*注意PASSTHRU是唯一能够覆盖终止规则的动作。*
 
-Example of action that redirects packets to queue index 10:
+实例，把包重定向到10号队列:
 
 .. _table_rte_flow_action_example:
 
