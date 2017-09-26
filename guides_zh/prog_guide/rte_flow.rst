@@ -595,19 +595,15 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 
 在给定的偏移位置上匹配给定长度的字符串。
 
-Offset is either absolute (using the start of the packet) or relative to the
-end of the previous matched item in the stack, in which case negative values
-are allowed.
+偏移位置可以是绝对位置(从包的起始位置开始)或者是相对位置(相对于匹配项栈中前一个匹配项结束位置)，
+相对位置可以是负数。
 
-If search is enabled, offset is used as the starting point. The search area
-can be delimited by setting limit to a nonzero value, which is the maximum
-number of bytes after offset where the pattern may start.
+如果开启搜索功能，偏移位置用作起始点。搜索区域可以通过一个非零值(该值就是偏移位置后的最大字节数)进行限定。
 
-Matching a zero-length pattern is allowed, doing so resets the relative
-offset for subsequent items.
+可以设置匹配0长度字符串，这样做可以重置随后匹配项的相对偏移位置。
 
-- This type does not support ranges (``last`` field).
-- Default ``mask`` matches all fields exactly.
+- 该类型不支持范围 (``last`` 字段).
+- 默认 ``mask`` 严格匹配所有字段。
 
 .. _table_rte_flow_item_raw:
 
@@ -616,31 +612,29 @@ offset for subsequent items.
    +----------+--------------+-------------------------------------------------+
    | Field    | Subfield     | Value                                           |
    +==========+==============+=================================================+
-   | ``spec`` | ``relative`` | look for pattern after the previous item        |
+   | ``spec`` | ``relative`` | 前一个匹配的搜索模式                            |
    |          +--------------+-------------------------------------------------+
-   |          | ``search``   | search pattern from offset (see also ``limit``) |
+   |          | ``search``   | 搜索模式                                        |
    |          +--------------+-------------------------------------------------+
-   |          | ``reserved`` | reserved, must be set to zero                   |
+   |          | ``reserved`` | 预留，必须设置为0                               |
    |          +--------------+-------------------------------------------------+
-   |          | ``offset``   | absolute or relative offset for ``pattern``     |
+   |          | ``offset``   | 绝对偏移或相对偏移                              |
    |          +--------------+-------------------------------------------------+
-   |          | ``limit``    | search area limit for start of ``pattern``      |
+   |          | ``limit``    | 搜索区域限制                                    |
    |          +--------------+-------------------------------------------------+
-   |          | ``length``   | ``pattern`` length                              |
+   |          | ``length``   | 字符串长度                                      |
    |          +--------------+-------------------------------------------------+
-   |          | ``pattern``  | byte string to look for                         |
+   |          | ``pattern``  | 要查找的字符串                                  |
    +----------+--------------+-------------------------------------------------+
-   | ``last`` | if specified, either all 0 or with the same values as ``spec`` |
+   | ``last`` | 全0或者与 ``spec`` 一样                                        |
    +----------+----------------------------------------------------------------+
-   | ``mask`` | bit-mask applied to ``spec`` values with usual behavior        |
+   | ``mask`` | 应用于``spec`` 值                                              |
    +----------+----------------------------------------------------------------+
 
-Example pattern looking for several strings at various offsets of a UDP
-payload, using combined RAW items:
-
+示例，使用RAW匹配项在UDP负载多个偏移位置上查找字符串:
 .. _table_rte_flow_item_raw_example:
 
-.. table:: UDP payload matching
+.. table:: UDP 负载匹配
 
    +-------+------+----------+--------------+-------+
    | Index | Item | Field    | Subfield     | Value |
@@ -690,13 +684,13 @@ payload, using combined RAW items:
    | 6     | END                                    |
    +-------+----------------------------------------+
 
-This translates to:
+解释:
 
-- Locate "foo" at least 10 bytes deep inside UDP payload.
-- Locate "bar" after "foo" plus 20 bytes.
-- Locate "baz" after "bar" minus 29 bytes.
+- 在UDP负载第10个字符处开始查找"foo"
+- 在"foo"后第20字节处开始查找"bar"
+- 在"bar"前第29字节处开始查找"baz"
 
-Such a packet may be represented as follows (not to scale)::
+包示例 (非等比例)::
 
  0                     >= 10 B           == 20 B
  |                  |<--------->|     |<--------->|
@@ -708,134 +702,132 @@ Such a packet may be represented as follows (not to scale)::
                           |<--------------------------->|
                                       == 29 B
 
-Note that matching subsequent pattern items would resume after "baz", not
-"bar" since matching is always performed after the previous item of the
-stack.
+注意，后续的模式项将从"baz"开始，而不是"bar"，因为匹配总是接着上一个匹配项开始执行的。
 
 数据模式项: ``ETH``
 ^^^^^^^^^^^^^
 
-Matches an Ethernet header.
+匹配以太网头
 
-- ``dst``: destination MAC.
-- ``src``: source MAC.
-- ``type``: EtherType.
-- Default ``mask`` matches destination and source addresses only.
+- ``dst``: 目的 MAC.
+- ``src``: 源 MAC.
+- ``type``: 类型
+- 默认 ``mask`` 仅匹配目的地址和源地址
 
 数据模式项: ``VLAN``
 ^^^^^^^^^^^^^^
 
-Matches an 802.1Q/ad VLAN tag.
+匹配 802.1Q/ad VLAN 标签
 
-- ``tpid``: tag protocol identifier.
-- ``tci``: tag control information.
-- Default ``mask`` matches TCI only.
+- ``tpid``: 标签协议标识符
+- ``tci``: 标签控制信息
+- 默认 ``mask`` 仅匹配TCI
 
 数据模式项: ``IPV4``
 ^^^^^^^^^^^^^^
 
-Matches an IPv4 header.
+匹配IPv4头
 
-Note: IPv4 options are handled by dedicated pattern items.
+注意: IPv4 选项是由专门的模式项来处理的。
 
-- ``hdr``: IPv4 header definition (``rte_ip.h``).
-- Default ``mask`` matches source and destination addresses only.
+- ``hdr``: IPv4 头定义 (``rte_ip.h``).
+- 默认 ``mask`` 仅匹配目的地址和源地址
 
 数据模式项: ``IPV6``
 ^^^^^^^^^^^^^^
 
-Matches an IPv6 header.
+匹配IPv6头
 
-Note: IPv6 options are handled by dedicated pattern items.
+注意: IPv6 选项是由专门的模式项来处理的。
 
-- ``hdr``: IPv6 header definition (``rte_ip.h``).
-- Default ``mask`` matches source and destination addresses only.
+- ``hdr``: IPv6 头定义 (``rte_ip.h``).
+- 默认 ``mask`` 仅匹配目的地址和源地址
 
 数据模式项: ``ICMP``
 ^^^^^^^^^^^^^^
 
-Matches an ICMP header.
+匹配 ICMP 头
 
-- ``hdr``: ICMP header definition (``rte_icmp.h``).
-- Default ``mask`` matches ICMP type and code only.
+- ``hdr``: ICMP 头定义 (``rte_icmp.h``).
+- 默认 ``mask`` 仅匹配ICMP类型和代码
 
 数据模式项: ``UDP``
 ^^^^^^^^^^^^^
 
-Matches a UDP header.
+匹配UDP头
 
-- ``hdr``: UDP header definition (``rte_udp.h``).
-- Default ``mask`` matches source and destination ports only.
+- ``hdr``: UDP 头定义 (``rte_udp.h``).
+- 默认 ``mask`` 仅匹配源端口和目的端口
 
 数据模式项: ``TCP``
 ^^^^^^^^^^^^^
 
-Matches a TCP header.
+匹配TCP头
 
-- ``hdr``: TCP header definition (``rte_tcp.h``).
-- Default ``mask`` matches source and destination ports only.
+- ``hdr``: TCP 头定义 (``rte_tcp.h``).
+- 默认 ``mask`` 仅匹配源端口和目的端口
 
 数据模式项: ``SCTP``
 ^^^^^^^^^^^^^^
 
-Matches a SCTP header.
+匹配SCTP头
 
-- ``hdr``: SCTP header definition (``rte_sctp.h``).
-- Default ``mask`` matches source and destination ports only.
+- ``hdr``: SCTP 头定义 (``rte_sctp.h``).
+- 默认 ``mask`` 仅匹配源端口和目的端口
 
 数据模式项: ``VXLAN``
 ^^^^^^^^^^^^^^^
 
-Matches a VXLAN header (RFC 7348).
+匹配VXLAN头(RFC 7348).
 
-- ``flags``: normally 0x08 (I flag).
-- ``rsvd0``: reserved, normally 0x000000.
-- ``vni``: VXLAN network identifier.
-- ``rsvd1``: reserved, normally 0x00.
-- Default ``mask`` matches VNI only.
+- ``flags``: 通常是 0x08 (I flag).
+- ``rsvd0``: 预留, 通常是 0x000000.
+- ``vni``: VXLAN网络标识符
+- ``rsvd1``: 预留, 通常是 0x00.
+- 默认 ``mask`` 仅匹配VNI
 
 数据模式项: ``E_TAG``
 ^^^^^^^^^^^^^^^
 
-Matches an IEEE 802.1BR E-Tag header.
+匹配 IEEE 802.1BR E-Tag 头
 
-- ``tpid``: tag protocol identifier (0x893F)
-- ``epcp_edei_in_ecid_b``: E-Tag control information (E-TCI), E-PCP (3b),
+- ``tpid``: 标签协议标识符(0x893F)
+- ``epcp_edei_in_ecid_b``: E-Tag 控制信息 (E-TCI), E-PCP (3b),
   E-DEI (1b), ingress E-CID base (12b).
 - ``rsvd_grp_ecid_b``: reserved (2b), GRP (2b), E-CID base (12b).
 - ``in_ecid_e``: ingress E-CID ext.
 - ``ecid_e``: E-CID ext.
-- Default ``mask`` simultaneously matches GRP and E-CID base.
+- 默认 ``mask`` 同时匹配GRP 和 E-CID base.
 
 数据模式项: ``NVGRE``
 ^^^^^^^^^^^^^^^
 
-Matches a NVGRE header (RFC 7637).
+匹配NVGRE头 (RFC 7637).
 
 - ``c_k_s_rsvd0_ver``: checksum (1b), undefined (1b), key bit (1b),
   sequence number (1b), reserved 0 (9b), version (3b). This field must have
   value 0x2000 according to RFC 7637.
-- ``protocol``: protocol type (0x6558).
-- ``tni``: virtual subnet ID.
-- ``flow_id``: flow ID.
-- Default ``mask`` matches TNI only.
+- ``protocol``: 协议类型 (0x6558).
+- ``tni``: 虚拟子网ID.
+- ``flow_id``: 流ID.
+- 默认 ``mask`` 仅匹配TNI。
 
 数据模式项: ``MPLS``
 ^^^^^^^^^^^^^^
 
-Matches a MPLS header.
+匹配MPLS头
 
 - ``label_tc_s_ttl``: label, TC, Bottom of Stack and TTL.
-- Default ``mask`` matches label only.
+- 默认 ``mask`` 仅匹配label。
 
 数据模式项: ``GRE``
 ^^^^^^^^^^^^^^
 
-Matches a GRE header.
+匹配GRE头
 
 - ``c_rsvd0_ver``: checksum, reserved 0 and version.
-- ``protocol``: protocol type.
-- Default ``mask`` matches protocol only.
+- ``protocol``: 协议类型
+- 默认 ``mask`` 仅匹配协议
 
 动作
 ~~~~~~~
