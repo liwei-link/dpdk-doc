@@ -592,7 +592,8 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 数据模式项: ``RAW``
 ^^^^^^^^^^^^^
 
-Matches a byte string of a given length at a given offset.
+
+在给定的偏移位置上匹配给定长度的字符串。
 
 Offset is either absolute (using the start of the packet) or relative to the
 end of the previous matched item in the stack, in which case negative values
