@@ -835,7 +835,7 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 每种动作都由一个类型表示。有的动作有配置结构。合并在一个列表中的多个动作能够受到一个流规则的影响。
 该列表是无序的。
 
-有三类:
+动作有三类:
 
 - 终止动作 (比如 QUEUE, DROP, RSS, PF, VF)终止后续流规则处理匹配包，除非用 PASSTHRU 覆盖。
 
@@ -855,7 +855,7 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 
 .. _table_rte_flow_action_example:
 
-.. table:: Queue action
+.. table:: 队列动作
 
    +-----------+-------+
    | Field     | Value |
