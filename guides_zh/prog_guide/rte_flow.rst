@@ -1226,21 +1226,17 @@ VF模式项匹配的包可以重定向到包的原始VF上，而不是指定的V
 规则管理
 ----------------
 
-A rather simple API with few functions is provided to fully manage flow
-rules.
+非常简单的用于全面管理流规则的API。
 
-Each created flow rule is associated with an opaque, PMD-specific handle
-pointer. The application is responsible for keeping it until the rule is
-destroyed.
+每个创建好的流规则都和一个不透明的，PMD特定的句柄(指针)相关联。
+应用应该在规则销毁前一直保存该指针。
 
-Flows rules are represented by ``struct rte_flow`` objects.
+流规则由 ``struct rte_flow`` 表示。
 
 校验
 ~~~~~~~~~~
 
-Given that expressing a definite set of device capabilities is not
-practical, a dedicated function is provided to check if a flow rule is
-supported and can be created.
+考虑到暴露大量设备能力是不切实际的，所以提供了一个专门的函数用于检查某个流规则是否支持。
 
 .. code-block:: c
 
