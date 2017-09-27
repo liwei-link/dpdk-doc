@@ -832,7 +832,7 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 动作
 ~~~~~~~
 
-每种动作都由一个类型表示。有的动作有配置结构。合并在一个列表中的多个动作能够受到一个流规则的影响。
+每种动作都由一个类型表示。有的动作有配置结构。合并在一个列表中的多个动作能够受到一个流规则的影响。
 该列表是无序的。
 
 动作有三类:
@@ -845,7 +845,7 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
 
 当多个动作合并到一个流规则中时，它们应该是不同类型的(比如，同一个包不能丢弃两次)。
 
-对于给定的类型只有最后一个动作有效。但PMD仍会对整个表执行错误检查。
+对于给定的动作类型只有最后一个动作有效。但PMD仍会对整个表执行错误检查。
 
 和匹配模式类似，动作列表也是有 END 项结束的。
 
@@ -863,12 +863,11 @@ VXLAN TCP负载匹配的例子，外部的L3(IPv4 or IPv6)和L4(UDP)都是由第
    | ``index`` | 10    |
    +-----------+-------+
 
-Action lists examples, their order is not significant, applications must
-consider all actions to be performed simultaneously:
+动作列表示例，顺序是没有意义的，应用必须考虑到所有动作可以同时执行。
 
 .. _table_rte_flow_count_and_drop:
 
-.. table:: Count and drop
+.. table:: 统计和丢弃
 
    +-------+--------+
    | Index | Action |
@@ -884,7 +883,7 @@ consider all actions to be performed simultaneously:
 
 .. _table_rte_flow_mark_count_redirect:
 
-.. table:: Mark, count and redirect
+.. table:: 标记，统计和重定向
 
    +-------+--------+-----------+-------+
    | Index | Action | Field     | Value |
@@ -902,7 +901,7 @@ consider all actions to be performed simultaneously:
 
 .. _table_rte_flow_redirect_queue_5:
 
-.. table:: Redirect to queue 5
+.. table:: 重定向到5号队列
 
    +-------+--------+-----------+-------+
    | Index | Action | Field     | Value |
@@ -914,12 +913,11 @@ consider all actions to be performed simultaneously:
    | 2     | END                        |
    +-------+----------------------------+
 
-In the above example, considering both actions are performed simultaneously,
-the end result is that only QUEUE has any effect.
+在上面的例子中，考虑到两者同时执行，最终结果仅有QUEUE有效。
 
 .. _table_rte_flow_redirect_queue_3:
 
-.. table:: Redirect to queue 3
+.. table:: 重定向到3号队列
 
    +-------+--------+-----------+-------+
    | Index | Action | Field     | Value |
@@ -933,25 +931,21 @@ the end result is that only QUEUE has any effect.
    | 3     | END                        |
    +-------+----------------------------+
 
-As previously described, only the last action of a given type found in the
-list is taken into account. The above example also shows that VOID is
-ignored.
+如前面的描述，列表中对于给定类型(本例中QUEUE)仅有最后一个动作有效。上例中也展示了VOID只是被简单忽略。
 
 动作类型
 ~~~~~~~~~~~~
 
-Common action types are described in this section. Like pattern item types,
-this list is not exhaustive as new actions will be added in the future.
+本节描述了通用动作类型。本节内容并不是全面的，未来可能会有新动作加入进来。
 
 动作: ``END``
 ^^^^^^^^^^^^^^^
 
-End marker for action lists. Prevents further processing of actions, thereby
-ending the list.
+动作列表的结束标记。阻止超范围的动作处理，进而结束列表。
 
-- Its numeric value is 0 for convenience.
-- PMD support is mandatory.
-- No configurable properties.
+- 为了方便起见，它的数值为0。
+- PMD必须支持。
+- 无配置属性。
 
 .. _table_rte_flow_action_end:
 
@@ -960,17 +954,16 @@ ending the list.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
 动作: ``VOID``
 ^^^^^^^^^^^^^^^^
 
-Used as a placeholder for convenience. It is ignored and simply discarded by
-PMDs.
+作为占位符使用。PMD忽略并简单丢弃它。
 
-- PMD support is mandatory.
-- No configurable properties.
+- PMD必须支持。
+- 无配置属性。
 
 .. _table_rte_flow_action_void:
 
@@ -979,17 +972,16 @@ PMDs.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
 动作: ``PASSTHRU``
 ^^^^^^^^^^^^^^^^^^^^
 
-Leaves packets up for additional processing by subsequent flow rules. This
-is the default when a rule does not contain a terminating action, but can be
-specified to force a rule to become non-terminating.
+把包留给后续流规则处理。当规则中不包含终止动作时，该动作是默认动作。
+也可以给规则指定该动作使之变成非终止的。
 
-- No configurable properties.
+- 无配置属性。
 
 .. _table_rte_flow_action_passthru:
 
@@ -998,15 +990,14 @@ specified to force a rule to become non-terminating.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
-Example to copy a packet to a queue and continue processing by subsequent
-flow rules:
+实例，把包拷贝一份给队列，然后由后续流规则继续处理该包:
 
 .. _table_rte_flow_action_passthru_example:
 
-.. table:: Copy to queue 8
+.. table:: 拷贝到8号队列
 
    +-------+--------+-----------+-------+
    | Index | Action | Field     | Value |
@@ -1021,12 +1012,9 @@ flow rules:
 动作: ``MARK``
 ^^^^^^^^^^^^^^^^
 
-Attaches an integer value to packets and sets ``PKT_RX_FDIR`` and
-``PKT_RX_FDIR_ID`` mbuf flags.
+给包绑定一个整数值并设置 ``PKT_RX_FDIR`` 和 ``PKT_RX_FDIR_ID`` mbuf 标志。
 
-This value is arbitrary and application-defined. Maximum allowed value
-depends on the underlying implementation. It is returned in the
-``hash.fdir.hi`` mbuf field.
+该值由应用任意指定。最大值依赖底层实现。该值由 ``hash.fdir.hi`` mbuf 字段返回。
 
 .. _table_rte_flow_action_mark:
 
@@ -1041,10 +1029,9 @@ depends on the underlying implementation. It is returned in the
 动作: ``FLAG``
 ^^^^^^^^^^^^^^^^
 
-Flags packets. Similar to `Action: MARK`_ without a specific value; only
-sets the ``PKT_RX_FDIR`` mbuf flag.
+标记包。和 `Action: MARK`_ 相似，但不会指定值；仅设置 ``PKT_RX_FDIR`` mbuf 标志。
 
-- No configurable properties.
+- 无配置属性。
 
 .. _table_rte_flow_action_flag:
 
@@ -1053,13 +1040,13 @@ sets the ``PKT_RX_FDIR`` mbuf flag.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
 动作: ``QUEUE``
 ^^^^^^^^^^^^^^^^^
 
-Assigns packets to a given queue index.
+把包分派到给定队列。
 
 - Terminating by default.
 
@@ -1070,17 +1057,17 @@ Assigns packets to a given queue index.
    +-----------+--------------------+
    | Field     | Value              |
    +===========+====================+
-   | ``index`` | queue index to use |
+   | ``index`` | 队列索引           |
    +-----------+--------------------+
 
 动作: ``DROP``
 ^^^^^^^^^^^^^^^^
 
-Drop packets.
+丢弃包。
 
-- No configurable properties.
-- Terminating by default.
-- PASSTHRU overrides this action if both are specified.
+- 无配置属性。
+- 默认为终止动作。
+- 如果和 PASSTHRU 同时指定的话，该动作会被 PASSTHRU 覆盖。
 
 .. _table_rte_flow_action_drop:
 
@@ -1089,19 +1076,18 @@ Drop packets.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
 动作: ``COUNT``
 ^^^^^^^^^^^^^^^^^
 
-Enables counters for this rule.
+开启规则的计数器。
 
-These counters can be retrieved and reset through ``rte_flow_query()``, see
-``struct rte_flow_query_count``.
+这些计数器可以通过 ``rte_flow_query()`` 获取和重置，参考 ``struct rte_flow_query_count`` 。
 
-- Counters can be retrieved with ``rte_flow_query()``.
-- No configurable properties.
+- 计数器可以通过 ``rte_flow_query()`` 获取。
+- 无配置属性。
 
 .. _table_rte_flow_action_count:
 
@@ -1110,10 +1096,10 @@ These counters can be retrieved and reset through ``rte_flow_query()``, see
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
-Query structure to retrieve and reset flow rule counters:
+查询和重置流规则计数器的查询结构体( ``struct rte_flow_query_count`` ):
 
 .. _table_rte_flow_query_count:
 
@@ -1122,26 +1108,25 @@ Query structure to retrieve and reset flow rule counters:
    +---------------+-----+-----------------------------------+
    | Field         | I/O | Value                             |
    +===============+=====+===================================+
-   | ``reset``     | in  | reset counter after query         |
+   | ``reset``     | in  | 查询后重置计数器                  |
    +---------------+-----+-----------------------------------+
-   | ``hits_set``  | out | ``hits`` field is set             |
+   | ``hits_set``  | out | 设置 ``hits`` 字段                |
    +---------------+-----+-----------------------------------+
-   | ``bytes_set`` | out | ``bytes`` field is set            |
+   | ``bytes_set`` | out | 设置 ``bytes`` 字段               |
    +---------------+-----+-----------------------------------+
-   | ``hits``      | out | number of hits for this rule      |
+   | ``hits``      | out | 该规则被击中次数                  |
    +---------------+-----+-----------------------------------+
-   | ``bytes``     | out | number of bytes through this rule |
+   | ``bytes``     | out | 通过该规则的字节数                |
    +---------------+-----+-----------------------------------+
 
 动作: ``DUP``
 ^^^^^^^^^^^^^^^
 
-Duplicates packets to a given queue index.
+复制包到指定队列。
 
-This is normally combined with QUEUE, however when used alone, it is
-actually similar to QUEUE + PASSTHRU.
+正常要和QUEUE组合使用，而单独使用时它其实和 QUEUE + PASSTHRU 类似。
 
-- Non-terminating by default.
+- 默认为非终止动作。
 
 .. _table_rte_flow_action_dup:
 
@@ -1150,20 +1135,18 @@ actually similar to QUEUE + PASSTHRU.
    +-----------+------------------------------------+
    | Field     | Value                              |
    +===========+====================================+
-   | ``index`` | queue index to duplicate packet to |
+   | ``index`` | 队列索引                           |
    +-----------+------------------------------------+
 
 动作: ``RSS``
 ^^^^^^^^^^^^^^^
 
-Similar to QUEUE, except RSS is additionally performed on packets to spread
-them among several queues according to the provided parameters.
+和QUEUE类似，除了RSS根据参数把包分散传输到多个队列中。
 
-Note: RSS hash result is stored in the ``hash.rss`` mbuf field which
-overlaps ``hash.fdir.lo``. Since `Action: MARK`_ sets the ``hash.fdir.hi``
-field only, both can be requested simultaneously.
+注意：RSS哈希结果保存在mbuf的 ``hash.rss`` 字段，该字段与 ``hash.fdir.lo`` 重叠。
+因为 `Action: MARK`_ 仅设置了 ``hash.fdir.hi`` 字段，所以这两个字段可以同时被获取。
 
-- Terminating by default.
+- 默认为终止动作。
 
 .. _table_rte_flow_action_rss:
 
@@ -1172,20 +1155,20 @@ field only, both can be requested simultaneously.
    +--------------+------------------------------+
    | Field        | Value                        |
    +==============+==============================+
-   | ``rss_conf`` | RSS parameters               |
+   | ``rss_conf`` | RSS 参数                     |
    +--------------+------------------------------+
-   | ``num``      | number of entries in queue[] |
+   | ``num``      | queue[] 中实体个数           |
    +--------------+------------------------------+
-   | ``queue[]``  | queue indices to use         |
+   | ``queue[]``  | 队列索引列表                 |
    +--------------+------------------------------+
 
 动作: ``PF``
 ^^^^^^^^^^^^^^
 
-Redirects packets to the physical function (PF) of the current device.
+将数据包重定向到当前设备的物理功能(PF)。
 
-- No configurable properties.
-- Terminating by default.
+- 无配置属性。
+- 默认为终止动作。
 
 .. _table_rte_flow_action_pf:
 
@@ -1194,20 +1177,19 @@ Redirects packets to the physical function (PF) of the current device.
    +---------------+
    | Field         |
    +===============+
-   | no properties |
+   | 无属性        |
    +---------------+
 
 动作: ``VF``
 ^^^^^^^^^^^^^^
 
-Redirects packets to a virtual function (VF) of the current device.
+将数据包重定向到当前设备的虚拟功能(VF)。
 
-Packets matched by a VF pattern item can be redirected to their original VF
-ID instead of the specified one. This parameter may not be available and is
-not guaranteed to work properly if the VF part is matched by a prior flow
-rule or if packets are not addressed to a VF in the first place.
+VF模式项匹配的包可以重定向到包的原始VF上，而不是指定的VF。
+如果VF部分和之前的流规则匹配或者包最开始时不是发送到一个VF上时，
+该参数可能不可用并且不保证其可以正常工作。
 
-- Terminating by default.
+- 默认为终止动作。
 
 .. _table_rte_flow_action_vf:
 
@@ -1216,35 +1198,30 @@ rule or if packets are not addressed to a VF in the first place.
    +--------------+--------------------------------+
    | Field        | Value                          |
    +==============+================================+
-   | ``original`` | use original VF ID if possible |
+   | ``original`` | 原始的VF ID                    |
    +--------------+--------------------------------+
-   | ``vf``       | VF ID to redirect packets to   |
+   | ``vf``       | VF ID                          |
    +--------------+--------------------------------+
 
-Negative types
+负数类型
 ~~~~~~~~~~~~~~
 
-All specified pattern items (``enum rte_flow_item_type``) and actions
-(``enum rte_flow_action_type``) use positive identifiers.
+所有指定的模式项 (``enum rte_flow_item_type``) 和动作
+(``enum rte_flow_action_type``) 都使用正数标识符。
 
-The negative space is reserved for dynamic types generated by PMDs during
-run-time. PMDs may encounter them as a result but must not accept negative
-identifiers they are not aware of.
+负数预留给PMD运行时产生的动态类型。PMD可能会遇到负数的结果，但不能接收PMD无法识别的负数。
 
-A method to generate them remains to be defined.
+生成负数的方法待定义。
 
-Planned types
+计划中的类型
 ~~~~~~~~~~~~~
 
-Pattern item types will be added as new protocols are implemented.
+当有新的协议出现时，模式项类型就会增加。
 
-Variable headers support through dedicated pattern items, for example in
-order to match specific IPv4 options and IPv6 extension headers would be
-stacked after IPv4/IPv6 items.
+各种协议头是通过专门的模式项支持的，比如为了匹配IPv4选项和IPv6扩展头，
+相关的模式项就要放在IPv4/IPv6后面(栈中)。
 
-Other action types are planned but are not defined yet. These include the
-ability to alter packet data in several ways, such as performing
-encapsulation/decapsulation of tunnel headers.
+其他的动作类型在规划中，但还未定义。其中包括通过多种方式修改包数据，如隧道头的封装/解封。
 
 规则管理
 ----------------
