@@ -1247,51 +1247,36 @@ VF模式项匹配的包可以重定向到包的原始VF上，而不是指定的V
                      const struct rte_flow_action actions[],
                      struct rte_flow_error *error);
 
-The flow rule is validated for correctness and whether it could be accepted
-by the device given sufficient resources. The rule is checked against the
-current device mode and queue configuration. The flow rule may also
-optionally be validated against existing flow rules and device resources.
-This function has no effect on the target device.
+该函数验证流规则的正确性和设备是否能接收该流规则。对照当前设备模式和队列配置检查流规则。
+流规则也可以对照已存在的流规则和设备资源进行验证。该函数对目标设备没有影响。
 
-The returned value is guaranteed to remain valid only as long as no
-successful calls to ``rte_flow_create()`` or ``rte_flow_destroy()`` are made
-in the meantime and no device parameter affecting flow rules in any way are
-modified, due to possible collisions or resource limitations (although in
-such cases ``EINVAL`` should not be returned).
+由于可能的冲突或者资源限制(although in such cases ``EINVAL`` should not be returned)，
+只要在同一时间没有成功调用过 ``rte_flow_create()`` 或 ``rte_flow_destroy()``
+和修改过应用到流规则上的设备参数就可以保证函数返回值合法。
 
-Arguments:
+参数:
 
-- ``port_id``: port identifier of Ethernet device.
-- ``attr``: flow rule attributes.
-- ``pattern``: pattern specification (list terminated by the END pattern
-  item).
-- ``actions``: associated actions (list terminated by the END action).
-- ``error``: perform verbose error reporting if not NULL. PMDs initialize
-  this structure in case of error only.
+- ``port_id``: 以太网设备端口标识符。
+- ``attr``: 流规则属性。
+- ``pattern``: 模式说明 (以END项终止的列表)。
+- ``actions``: 相关的动作(以END动作终止的列表)。
+- ``error``: 发生错误时PMD会初始化该结构体用于报告详细的错误信息。
 
-Return values:
+返回值:
 
-- 0 if flow rule is valid and can be created. A negative errno value
-  otherwise (``rte_errno`` is also set), the following errors are defined.
-- ``-ENOSYS``: underlying device does not support this functionality.
-- ``-EINVAL``: unknown or invalid rule specification.
-- ``-ENOTSUP``: valid but unsupported rule specification (e.g. partial
-  bit-masks are unsupported).
-- ``EEXIST``: collision with an existing rule. Only returned if device
-  supports flow rule collision checking and there was a flow rule
-  collision. Not receiving this return code is no guarantee that creating
-  the rule will not fail due to a collision.
-- ``ENOMEM``: not enough memory to execute the function, or if the device
-  supports resource validation, resource limitation on the device.
-- ``-EBUSY``: action cannot be performed due to busy device resources, may
-  succeed if the affected queues or even the entire port are in a stopped
-  state (see ``rte_eth_dev_rx_queue_stop()`` and ``rte_eth_dev_stop()``).
+- 流规则合法且可以创建返回0。否则返回负数(``rte_errno`` 也会被设置)， 下面定义了一些错误值。
+- ``-ENOSYS``: 底层设备不支持该功能。
+- ``-EINVAL``: 流规则未知或非法。
+- ``-ENOTSUP``: 流规则有效但设备不支持(比如，部分位掩码不支持)。
+- ``EEXIST``: 与已存在的流规则冲突。仅在设备支持流规则冲突检测并且确实检测到冲突时才返回该值。
+  没有返回该值并不保证流规不会因为冲突创建失败。
+- ``ENOMEM``: 内存不足，或者设备支持资源验证，资源限制。
+- ``-EBUSY``: 设备忙碌操作无法执行， 可能在受影响队列或整个端口处于停止状态(参考 ``rte_eth_dev_rx_queue_stop()`` 和 ``rte_eth_dev_stop()``)时会成功。
 
 创建
 ~~~~~~~~
 
-Creating a flow rule is similar to validating one, except the rule is
-actually created and a handle returned.
+创建流规则和验证流规则类似，除了会确实创建流规则并返回流规则句柄。
 
 .. code-block:: c
 
@@ -1302,28 +1287,23 @@ actually created and a handle returned.
                    const struct rte_flow_action *actions[],
                    struct rte_flow_error *error);
 
-Arguments:
+参数:
 
-- ``port_id``: port identifier of Ethernet device.
-- ``attr``: flow rule attributes.
-- ``pattern``: pattern specification (list terminated by the END pattern
-  item).
-- ``actions``: associated actions (list terminated by the END action).
-- ``error``: perform verbose error reporting if not NULL. PMDs initialize
-  this structure in case of error only.
+- ``port_id``: 以太网设备端口标识符。
+- ``attr``: 流规则属性。
+- ``pattern``: 模式说明 (以END项终止的列表)。
+- ``actions``: 相关的动作(以END动作终止的列表)。
+- ``error``: 发生错误时PMD会初始化该结构体用于报告详细的错误信息。
 
-Return values:
+返回值:
 
-A valid handle in case of success, NULL otherwise and ``rte_errno`` is set
-to the positive version of one of the error codes defined for
-``rte_flow_validate()``.
+成功返回一个合法的句柄，否则返回NULL并且 ``rte_errno`` 被设置为错误码(为 ``rte_flow_validate()`` 定义的)的正数版本。
 
 销毁
 ~~~~~~~~~~~
 
-Flow rules destruction is not automatic, and a queue or a port should not be
-released if any are still attached to them. Applications must take care of
-performing this step before releasing resources.
+流规则的销毁不是原子操作，在流规则仍绑定在资源(队列或端口)上时，这些资源不应该释放。
+应用必须在释放资源前执行销毁步骤。
 
 .. code-block:: c
 
@@ -1333,28 +1313,25 @@ performing this step before releasing resources.
                     struct rte_flow_error *error);
 
 
-Failure to destroy a flow rule handle may occur when other flow rules depend
-on it, and destroying it would result in an inconsistent state.
+当一个流规则被其他流规则依赖时，销毁该流规则可能会失败，并且销毁它会导致状态不一致问题。
 
-This function is only guaranteed to succeed if handles are destroyed in
-reverse order of their creation.
+该函数仅保证逆序(创建顺序)销毁流规则才会成功。
 
-Arguments:
+参数:
 
-- ``port_id``: port identifier of Ethernet device.
-- ``flow``: flow rule handle to destroy.
-- ``error``: perform verbose error reporting if not NULL. PMDs initialize
-  this structure in case of error only.
+- ``port_id``: 以太网设备端口标识符。
+- ``flow``: 要销毁的流规则句柄。
+- ``error``: 发生错误时PMD会初始化该结构体用于报告详细的错误信息。
 
-Return values:
+返回值:
 
-- 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
+- 0 成功, 否则返回负数错误码并设置 ``rte_errno`` 。
 
-刷新
+刷新(flush)
 ~~~~~
 
-Convenience function to destroy all flow rule handles associated with a
-port. They are released as with successive calls to ``rte_flow_destroy()``.
+一个简便的函数用于销毁和一个端口相关的所有流规则。
+和连续调用 ``rte_flow_destroy()`` 销毁流规则一样。
 
 .. code-block:: c
 
@@ -1362,27 +1339,24 @@ port. They are released as with successive calls to ``rte_flow_destroy()``.
    rte_flow_flush(uint8_t port_id,
                   struct rte_flow_error *error);
 
-In the unlikely event of failure, handles are still considered destroyed and
-no longer valid but the port must be assumed to be in an inconsistent state.
+如果操作失败(概率很小)，流规则仍被视为销毁了并且不再合法，而端口被假设处于不一致的状态中。
 
-Arguments:
+参数:
 
-- ``port_id``: port identifier of Ethernet device.
-- ``error``: perform verbose error reporting if not NULL. PMDs initialize
-  this structure in case of error only.
+- ``port_id``: 以太网设备端口标识符。
+- ``error``: 发生错误时PMD会初始化该结构体用于报告详细的错误信息。
 
-Return values:
+返回值:
 
-- 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
+- 0 成功, 否则返回负数错误码并设置 ``rte_errno`` 。
 
 查询
 ~~~~~
 
-Query an existing flow rule.
+查询存在的流规则。
 
-This function allows retrieving flow-specific data such as counters. Data
-is gathered by special actions which must be present in the flow rule
-definition.
+该函数用于获取流规则的指定数据，比如计数器。
+数据是由特定动作获取的，这些动作必须在流规则定义时传入。
 
 .. code-block:: c
 
@@ -1393,25 +1367,22 @@ definition.
                   void *data,
                   struct rte_flow_error *error);
 
-Arguments:
+参数:
 
-- ``port_id``: port identifier of Ethernet device.
-- ``flow``: flow rule handle to query.
-- ``action``: action type to query.
-- ``data``: pointer to storage for the associated query data type.
-- ``error``: perform verbose error reporting if not NULL. PMDs initialize
-  this structure in case of error only.
+- ``port_id``: 以太网设备端口标识符。
+- ``flow``: 流规则句柄。
+- ``action``: 查询的动作类型。
+- ``data``: 用于存储查询结果的指针。
+- ``error``: 发生错误时PMD会初始化该结构体用于报告详细的错误信息。
 
-Return values:
+返回值:
 
-- 0 on success, a negative errno value otherwise and ``rte_errno`` is set.
+- 0 成功, 否则返回负数错误码并设置 ``rte_errno`` 。
 
 详细错误报告
 -----------------------
 
-The defined *errno* values may not be accurate enough for users or
-application developers who want to investigate issues related to flow rules
-management. A dedicated error object is defined for this purpose:
+*errno* 值对于用户或者应用开发者来说不够精准。有一个专门的错误对象用于提供详细错误信息:
 
 .. code-block:: c
 
@@ -1436,68 +1407,48 @@ management. A dedicated error object is defined for this purpose:
        const char *message; /**< Human-readable error message. */
    };
 
-Error type ``RTE_FLOW_ERROR_TYPE_NONE`` stands for no error, in which case
-remaining fields can be ignored. Other error types describe the type of the
-object pointed by ``cause``.
+错误类型 ``RTE_FLOW_ERROR_TYPE_NONE`` 代表没有错误, 这种情况下，其他的字段可以忽略。
+其他的错误类型的错误描述为字段 ``cause``。
 
-If non-NULL, ``cause`` points to the object responsible for the error. For a
-flow rule, this may be a pattern item or an individual action.
+``cause`` 指针指向引发错误的对象。对于流规则，可能是模式项或者独立的动作。
 
-If non-NULL, ``message`` provides a human-readable error message.
+``message`` 错误描述的字符串。
 
-This object is normally allocated by applications and set by PMDs in case of
-error, the message points to a constant string which does not need to be
-freed by the application, however its pointer can be considered valid only
-as long as its associated DPDK port remains configured. Closing the
-underlying device or unloading the PMD invalidates it.
+该对象正常由应用申请，发生错误时有PMD设置。 ``message`` 指针是指向字符串常量的，
+应用无需释放，只要相关的DPDK端口保持配置，该指针被视为一直有效。
+关闭底层设备或者卸载PMD会导致 ``message`` 指针失效。
 
-Caveats
+注意事项
 -------
 
-- DPDK does not keep track of flow rules definitions or flow rule objects
-  automatically. Applications may keep track of the former and must keep
-  track of the latter. PMDs may also do it for internal needs, however this
-  must not be relied on by applications.
+- DPDK不会自动记录流规则定义或者流规则对象。应用可以记录前者，但必须记录后者。
+  PMD为了内部需要也可以这样做，但应用一定不要依赖PMD的记录。
 
-- Flow rules are not maintained between successive port initializations. An
-  application exiting without releasing them and restarting must re-create
-  them from scratch.
+- 流规则不会在端口初始化之间保持。如果应用在退出时没有释放流规则，
+  那么在其重启时必须重建流规则。
 
-- API operations are synchronous and blocking (``EAGAIN`` cannot be
-  returned).
+- API操作是同步阻塞的(不会返回 ``EAGAIN`` )。
 
-- There is no provision for reentrancy/multi-thread safety, although nothing
-  should prevent different devices from being configured at the same
-  time. PMDs may protect their control path functions accordingly.
+- 虽然没有提供可重入/线程安全，但仍应该防止同时在不同设备间的配置操作。
+  PMD可能保护其控制路径。
 
-- Stopping the data path (TX/RX) should not be necessary when managing flow
-  rules. If this cannot be achieved naturally or with workarounds (such as
-  temporarily replacing the burst function pointers), an appropriate error
-  code must be returned (``EBUSY``).
+- 管理流规则时不必停止数据路径(TX/RX)。如果无法实现的话，应该返回一个适当的错误码(``EBUSY``)。
 
-- PMDs, not applications, are responsible for maintaining flow rules
-  configuration when stopping and restarting a port or performing other
-  actions which may affect them. They can only be destroyed explicitly by
-  applications.
+- 在停止并重启端口或者执行其他受影响的动作时，是PMD而不是应用负责维护流规则的配置。
 
-For devices exposing multiple ports sharing global settings affected by flow
-rules:
+设备暴露多个端口，但这些端口共享全局设置，受下面的流规则影响:
 
-- All ports under DPDK control must behave consistently, PMDs are
-  responsible for making sure that existing flow rules on a port are not
-  affected by other ports.
+- DPDK控制下的所有端口必须行为一致，PMD要确保一个端口的流规则不会受到其他端口的影响。
 
-- Ports not under DPDK control (unaffected or handled by other applications)
-  are user's responsibility. They may affect existing flow rules and cause
-  undefined behavior. PMDs aware of this may prevent flow rules creation
-  altogether in such cases.
+- 不在DPDK控制下的端口(未受影响的或者由其他应用管理的)，有用于负责管理。
+  它们可能影响已存在的流规则并产生未定义的行为。如果PMD感知到这种情况，
+  可以阻止流规则的创建。
 
 PMD接口
 -------------
 
-The PMD interface is defined in ``rte_flow_driver.h``. It is not subject to
-API/ABI versioning constraints as it is not exposed to applications and may
-evolve independently.
+PMD的接口定义在 ``rte_flow_driver.h``。其不受API/ABI的版本限制，
+因为它并不暴露给应用并且可以独立发展。
 
 It is currently implemented on top of the legacy filtering framework through
 filter type *RTE_ETH_FILTER_GENERIC* that accepts the single operation
