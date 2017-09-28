@@ -1450,49 +1450,38 @@ PMD接口
 PMD的接口定义在 ``rte_flow_driver.h``。其不受API/ABI的版本限制，
 因为它并不暴露给应用并且可以独立发展。
 
-It is currently implemented on top of the legacy filtering framework through
-filter type *RTE_ETH_FILTER_GENERIC* that accepts the single operation
-*RTE_ETH_FILTER_GET* to return PMD-specific *rte_flow* callbacks wrapped
-inside ``struct rte_flow_ops``.
+当前PMD接口是基于原过滤框架的 *RTE_ETH_FILTER_GENERIC* 过滤类型实现的，
+该过滤类型接收单一操作 *RTE_ETH_FILTER_GET* 返回PMD特定的 *rte_flow* 回调(包装在 ``struct rte_flow_ops`` 中)。
 
-This overhead is temporarily necessary in order to keep compatibility with
-the legacy filtering framework, which should eventually disappear.
+这种做法是为了和原过滤框架保持兼容，最终会被替换掉。
 
-- PMD callbacks implement exactly the interface described in `Rules
-  management`_, except for the port ID argument which has already been
-  converted to a pointer to the underlying ``struct rte_eth_dev``.
+- PMD回调准确地实现了 `Rules management`_ 中描述的接口，
+  除了已经被转换成指向底层的 ``struct rte_eth_dev`` 指针的端口ID参数。
 
-- Public API functions do not process flow rules definitions at all before
-  calling PMD functions (no basic error checking, no validation
-  whatsoever). They only make sure these callbacks are non-NULL or return
-  the ``ENOSYS`` (function not supported) error.
+- 公共API函数在调用PMD函数(无基本的错误检查，无任何校验)前不会处理流规则定义。
+  它们仅确保这些回调是非NULL的或者返回 ``ENOSYS`` (不支持的功能)错误。
 
-This interface additionally defines the following helper functions:
+此外，该接口定义了以下辅助函数:
 
-- ``rte_flow_ops_get()``: get generic flow operations structure from a
-  port.
+- ``rte_flow_ops_get()``: 从端口中获取通用流操作结构。
 
-- ``rte_flow_error_set()``: initialize generic flow error structure.
+- ``rte_flow_error_set()``: 初始化通用流错误结构。
 
-More will be added over time.
+未来会增加更多。
 
-Device compatibility
+设备兼容性
 --------------------
 
-No known implementation supports all the described features.
+目前，还没有可以支持所有已描述特性的实现。
 
-Unsupported features or combinations are not expected to be fully emulated
-in software by PMDs for performance reasons. Partially supported features
-may be completed in software as long as hardware performs most of the work
-(such as queue redirection and packet recognition).
+因为性能原因，并不期望在PMD中完全以软件模拟方式来实现硬件不支持的特性。
+部分支持的特性只要硬件执行大部分工作，剩余部分工作可以交给软件完成。
+比如，队列重定向和包识别。
 
-However PMDs are expected to do their best to satisfy application requests
-by working around hardware limitations as long as doing so does not affect
-the behavior of existing flow rules.
+但是，期望PMD可以尽全力满足应用的请求，PMD可以通过各种方法解除硬件限制，
+只要不影响到已存在流规则的行为。
 
-The following sections provide a few examples of such cases and describe how
-PMDs should handle them, they are based on limitations built into the
-previous APIs.
+以下章节中提供了一些PMD处理兼容性的例子，它们基于旧版本API中的限制。
 
 全局位掩码
 ~~~~~~~~~~~~~~~~
