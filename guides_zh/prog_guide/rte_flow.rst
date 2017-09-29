@@ -1486,37 +1486,30 @@ PMD的接口定义在 ``rte_flow_driver.h``。其不受API/ABI的版本限制，
 全局位掩码
 ~~~~~~~~~~~~~~~~
 
-Each flow rule comes with its own, per-layer bit-masks, while hardware may
-support only a single, device-wide bit-mask for a given layer type, so that
-two IPv4 rules cannot use different bit-masks.
+每个流规则都有自己的每层位掩码，然而硬件对某层可能只支持一种设备相关的位掩码，
+因此两个IPv4规则不能使用不同的位掩码。
 
-The expected behavior in this case is that PMDs automatically configure
-global bit-masks according to the needs of the first flow rule created.
+这种情况下，期望PMD根据第一个创建的流规则的需求自动配置全局位掩码。
 
-Subsequent rules are allowed only if their bit-masks match those, the
-``EEXIST`` error code should be returned otherwise.
+后续创建的流规则如果匹配位掩码则可以创建，否则会返回 ``EEXIST`` 错误码。
 
-Unsupported layer types
+不支持的(协议)层类型
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Many protocols can be simulated by crafting patterns with the `Item: RAW`_
-type.
+很多协议可以通过 `Item: RAW`_ 类型模拟。
 
-PMDs can rely on this capability to simulate support for protocols with
-headers not directly recognized by hardware.
+PMD通过这种方式模拟支持那些报头无法直接被硬件识别的协议。
 
-``ANY`` pattern item
+``ANY`` 模式项
 ~~~~~~~~~~~~~~~~~~~~
 
-This pattern item stands for anything, which can be difficult to translate
-to something hardware would understand, particularly if followed by more
-specific types.
+该模式项代表那些硬件很难解析，特别是在更加特殊类型后面的协议。
 
-Consider the following pattern:
+考虑下面的模式:
 
 .. _table_rte_flow_unsupported_any:
 
-.. table:: Pattern with ANY as L3
+.. table:: L3使用ANY的模式
 
    +-------+-----------------------+
    | Index | Item                  |
@@ -1530,12 +1523,11 @@ Consider the following pattern:
    | 3     | END                   |
    +-------+-----------------------+
 
-Knowing that TCP does not make sense with something other than IPv4 and IPv6
-as L3, such a pattern may be translated to two flow rules instead:
+要知道TCP是感知不到L3具体协议的，该模式也可以使用下面两个代替:
 
 .. _table_rte_flow_unsupported_any_ipv4:
 
-.. table:: ANY replaced with IPV4
+.. table:: 用IPV4替换ANY
 
    +-------+--------------------+
    | Index | Item               |
@@ -1553,7 +1545,7 @@ as L3, such a pattern may be translated to two flow rules instead:
 
 .. _table_rte_flow_unsupported_any_ipv6:
 
-.. table:: ANY replaced with IPV6
+.. table:: 用IPV6替换ANY
 
    +-------+--------------------+
    | Index | Item               |
@@ -1567,89 +1559,69 @@ as L3, such a pattern may be translated to two flow rules instead:
    | 3     | END                |
    +-------+--------------------+
 
-Note that as soon as a ANY rule covers several layers, this approach may
-yield a large number of hidden flow rules. It is thus suggested to only
-support the most common scenarios (anything as L2 and/or L3).
+注意一个ANY规则包括多个协议层，这种做法可能会产生大量隐藏的流规则。
+因此建议仅支持最常见的场景(作为L2或L3)。
 
-Unsupported actions
+不支持的动作
 ~~~~~~~~~~~~~~~~~~~
 
-- When combined with `Action: QUEUE`_, packet counting (`Action: COUNT`_)
-  and tagging (`Action: MARK`_ or `Action: FLAG`_) may be implemented in
-  software as long as the target queue is used by a single rule.
+- 包计数(`Action: COUNT`_)和标记(`Action: MARK`_ or `Action: FLAG`_) 与 
+  `Action: QUEUE`_ 的组合可以通过软件实现，前提是目标队列仅被单一规则使用。
 
-- A rule specifying both `Action: DUP`_ + `Action: QUEUE`_ may be translated
-  to two hidden rules combining `Action: QUEUE`_ and `Action: PASSTHRU`_.
+- 指定了 `Action: DUP`_ + `Action: QUEUE`_ 的规则可以转换成两个结合了 
+  `Action: QUEUE`_ 和 `Action: PASSTHRU`_ 的规则。
 
-- When a single target queue is provided, `Action: RSS`_ can also be
-  implemented through `Action: QUEUE`_.
+- 当只提供一个单一目标队列时， `Action: RSS`_ 也可以通过 `Action: QUEUE`_ 实现。
 
-Flow rules priority
+流规则优先级
 ~~~~~~~~~~~~~~~~~~~
 
-While it would naturally make sense, flow rules cannot be assumed to be
-processed by hardware in the same order as their creation for several
-reasons:
+我们不能假设流规则能够被硬件按照创建顺序执行的几个原因:
 
-- They may be managed internally as a tree or a hash table instead of a
-  list.
-- Removing a flow rule before adding another one can either put the new rule
-  at the end of the list or reuse a freed entry.
-- Duplication may occur when packets are matched by several rules.
+- 流规则内部可能是以树或者哈希表存储而不是列表。
 
-For overlapping rules (particularly in order to use `Action: PASSTHRU`_)
-predictable behavior is only guaranteed by using different priority levels.
+- 在新增流规则前删除过流规则，那么新增的规则可能会被放到表尾或者重用空闲的实体空间。
 
-Priority levels are not necessarily implemented in hardware, or may be
-severely limited (e.g. a single priority bit).
+- 当包匹配多个规则时，可能会发生复制。
 
-For these reasons, priority levels may be implemented purely in software by
-PMDs.
+对于重叠的规则(特别是为了使用 `Action: PASSTHRU`_)仅保证在使用不同优先级时结果可预测。
 
-- For devices expecting flow rules to be added in the correct order, PMDs
-  may destroy and re-create existing rules after adding a new one with
-  a higher priority.
+优先级不必在硬件中实现，除非有严格的限制(比如，优先级位)。
 
-- A configurable number of dummy or empty rules can be created at
-  initialization time to save high priority slots for later.
+因此，优先级可以由PMD纯软件实现。
 
-- In order to save priority levels, PMDs may evaluate whether rules are
-  likely to collide and adjust their priority accordingly.
+- 对于希望流规则能够按照正确顺序增加的设备，PMD可以销毁规则并在加入高优先级规则后重建销毁的规则。
 
-Future evolutions
+- 在初始化时可以为后续的高优先级的规则预留位置(通过创建可配置数量的空规则)。
+
+- 为了保存优先级，PMD可以评估规则是否冲突并调整优先级。
+
+未来发展
 -----------------
 
-- A device profile selection function which could be used to force a
-  permanent profile instead of relying on its automatic configuration based
-  on existing flow rules.
+- 设备配置选择功能，可用于强制永久性配置，而不是依靠现有流程规则自动配置。
 
-- A method to optimize *rte_flow* rules with specific pattern items and
-  action types generated on the fly by PMDs. DPDK should assign negative
-  numbers to these in order to not collide with the existing types. See
-  `Negative types`_.
+- 优化带有由PMD生成的动作类型和指定模式项的 *rte_flow* 规则。
+  PMD应该给这些类型分配负数，以免和已存在的类型冲突。参加 `Negative types`_
 
-- Adding specific egress pattern items and actions as described in
-  `Attribute: Traffic direction`_.
+- 增加在 `Attribute: Traffic direction`_ 中描述的特定出口模式项和动作。
 
-- Optional software fallback when PMDs are unable to handle requested flow
-  rules so applications do not have to implement their own.
+- 在PMD无法处理请求的流规则时可以可选的回退该操作，无需应用处理。
 
-API migration
+API 迁移
 -------------
 
-Exhaustive list of deprecated filter types (normally prefixed with
-*RTE_ETH_FILTER_*) found in ``rte_eth_ctrl.h`` and methods to convert them
-to *rte_flow* rules.
+完整的弃用过滤器类型(通常前缀为 *RTE_ETH_FILTER_*)列表在 ``rte_eth_ctrl.h`` 中，
+其中还有转换成 *rte_flow* 规则的方法。
 
 ``MACVLAN`` to ``ETH`` → ``VF``, ``PF``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*MACVLAN* can be translated to a basic `Item: ETH`_ flow rule with a
-terminating `Action: VF`_ or `Action: PF`_.
+*MACVLAN* 可以转换成以 `Action: VF`_ 或 `Action: PF`_ 终止的 `Item: ETH`_ 流规则
 
 .. _table_rte_flow_migration_macvlan:
 
-.. table:: MACVLAN conversion
+.. table:: MACVLAN 转换
 
    +--------------------------+---------+
    | Pattern                  | Actions |
@@ -1666,12 +1638,11 @@ terminating `Action: VF`_ or `Action: PF`_.
 ``ETHERTYPE`` to ``ETH`` → ``QUEUE``, ``DROP``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*ETHERTYPE* is basically an `Item: ETH`_ flow rule with a terminating
-`Action: QUEUE`_ or `Action: DROP`_.
+*ETHERTYPE* 基本上就是以 `Action: QUEUE`_ or `Action: DROP`_ 终止的 `Item: ETH`_ 流规则。
 
 .. _table_rte_flow_migration_ethertype:
 
-.. table:: ETHERTYPE conversion
+.. table:: ETHERTYPE 转换
 
    +--------------------------+---------+
    | Pattern                  | Actions |
@@ -1688,12 +1659,11 @@ terminating `Action: VF`_ or `Action: PF`_.
 ``FLEXIBLE`` to ``RAW`` → ``QUEUE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*FLEXIBLE* can be translated to one `Item: RAW`_ pattern with a terminating
-`Action: QUEUE`_ and a defined priority level.
+*FLEXIBLE* 可以转换成以 `Action: QUEUE`_ 终止并带有优先级的 `Item: RAW`_ 模式。
 
 .. _table_rte_flow_migration_flexible:
 
-.. table:: FLEXIBLE conversion
+.. table:: FLEXIBLE 转换
 
    +--------------------------+---------+
    | Pattern                  | Actions |
@@ -1710,14 +1680,13 @@ terminating `Action: VF`_ or `Action: PF`_.
 ``SYN`` to ``TCP`` → ``QUEUE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*SYN* is a `Item: TCP`_ rule with only the ``syn`` bit enabled and masked,
-and a terminating `Action: QUEUE`_.
+*SYN* 是仅带有启用 ``syn`` 位并且以 `Action: QUEUE`_ 终止的 `Item: TCP`_ 规则。
 
-Priority level can be set to simulate the high priority bit.
+可以设置优先级来模拟高优先级位。
 
 .. _table_rte_flow_migration_syn:
 
-.. table:: SYN conversion
+.. table:: SYN 转换
 
    +-----------------------------------+---------+
    | Pattern                           | Actions |
@@ -1744,14 +1713,13 @@ Priority level can be set to simulate the high priority bit.
 ``NTUPLE`` to ``IPV4``, ``TCP``, ``UDP`` → ``QUEUE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*NTUPLE* is similar to specifying an empty L2, `Item: IPV4`_ as L3 with
-`Item: TCP`_ or `Item: UDP`_ as L4 and a terminating `Action: QUEUE`_.
+*NTUPLE* 和指定空L3，`Item: IPV4`_ 作为L3， `Item: TCP`_ 或 `Item: UDP`_ 作为L4并且以 `Action: QUEUE`_ 终止的规则类似。
 
-A priority level can be specified as well.
+同样也可以指定优先级。
 
 .. _table_rte_flow_migration_ntuple:
 
-.. table:: NTUPLE conversion
+.. table:: NTUPLE 转换
 
    +-----------------------------+---------+
    | Pattern                     | Actions |
@@ -1780,13 +1748,13 @@ A priority level can be specified as well.
 ``TUNNEL`` to ``ETH``, ``IPV4``, ``IPV6``, ``VXLAN`` (or other) → ``QUEUE``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*TUNNEL* matches common IPv4 and IPv6 L3/L4-based tunnel types.
+*TUNNEL* 匹配通用的 IPv4 和 IPv6 L3/L4-based 隧道类型。
 
-In the following table, `Item: ANY`_ is used to cover the optional L4.
+下表中, `Item: ANY`_ 用于覆盖可选的L4。
 
 .. _table_rte_flow_migration_tunnel:
 
-.. table:: TUNNEL conversion
+.. table:: TUNNEL 转换
 
    +-------------------------------------------------------+---------+
    | Pattern                                               | Actions |
@@ -1821,46 +1789,32 @@ In the following table, `Item: ANY`_ is used to cover the optional L4.
 ``FDIR`` to most item types → ``QUEUE``, ``DROP``, ``PASSTHRU``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*FDIR* is more complex than any other type, there are several methods to
-emulate its functionality. It is summarized for the most part in the table
-below.
+*FDIR* 要比其他类型复杂，有多种方法模拟它的功能。大部分方法总结于下面。
 
-A few features are intentionally not supported:
+一些有意不支持的特性:
 
-- The ability to configure the matching input set and masks for the entire
-  device, PMDs should take care of it automatically according to the
-  requested flow rules.
+- 对整个设备配置匹配输入集和掩码的能力，PMD应该根据请求的流规则自动完成。
 
-  For example if a device supports only one bit-mask per protocol type,
-  source/address IPv4 bit-masks can be made immutable by the first created
-  rule. Subsequent IPv4 or TCPv4 rules can only be created if they are
-  compatible.
+  如，设备对每个协议类型仅支持一个位掩码，源/地址IPv4位掩码在第一个创建的规则时就永久的设置了。
+  之后的IPv4或TCPv4规则仅在和第一个规则兼容时才能创建成功。
 
-  Note that only protocol bit-masks affected by existing flow rules are
-  immutable, others can be changed later. They become mutable again after
-  the related flow rules are destroyed.
+  注意，仅应用在已存在流规则上的协议位掩码是永久不变的，其他的仍可以改变。
+  在流规则销毁时，相关的协议位掩码恢复可变状态。
 
-- Returning four or eight bytes of matched data when using flex bytes
-  filtering. Although a specific action could implement it, it conflicts
-  with the much more useful 32 bits tagging on devices that support it.
+- 使用弹性字节过滤时返回四或八字节的匹配数据。虽然可以通过指定动作实现，
+  但它会和超过32位(设备支持的话)标签冲突。
 
-- Side effects on RSS processing of the entire device. Flow rules that
-  conflict with the current device configuration should not be
-  allowed. Similarly, device configuration should not be allowed when it
-  affects existing flow rules.
+- 整个设备RSS处理的副作用。和当前设备配置冲突的流规则不该存在。
+  类似的，当设备配置影响到已存在的流规则时也不该被允许。
 
-- Device modes of operation. "none" is unsupported since filtering cannot be
-  disabled as long as a flow rule is present.
+- 设备操作模式。不支持"none"，因为只要流规则存在过滤就不能禁用。
 
-- "MAC VLAN" or "tunnel" perfect matching modes should be automatically set
-  according to the created flow rules.
-
-- Signature mode of operation is not defined but could be handled through a
-  specific item type if needed.
+- 应该根据创建的流规则自动配置"MAC VLAN" 或 "隧道"的完美匹配模式。
+- 签名模式的操作未定义，但如果需要，可以通过特定的模式项类型实现。
 
 .. _table_rte_flow_migration_fdir:
 
-.. table:: FDIR conversion
+.. table:: FDIR 转换
 
    +----------------------------------------+-----------------------+
    | Pattern                                | Actions               |
@@ -1895,22 +1849,19 @@ A few features are intentionally not supported:
 ``HASH``
 ~~~~~~~~
 
-There is no counterpart to this filter type because it translates to a
-global device setting instead of a pattern item. Device settings are
-automatically set according to the created flow rules.
+没有和该过滤器类型对应的模式项，因为它转换为全局设备设置而不是模式项。
+设备的配置可以根据创建的流规则自动设置。
 
-``L2_TUNNEL`` to ``VOID`` → ``VXLAN`` (or others)
+``L2_TUNNEL`` to ``VOID`` → ``VXLAN`` (或其他)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All packets are matched. This type alters incoming packets to encapsulate
-them in a chosen tunnel type, optionally redirect them to a VF as well.
+所有数据包都匹配。该类型修改输入包，把它们封装到选定的隧道类型中，也可以把它们重定向到VF。
 
-The destination pool for tag based forwarding can be emulated with other
-flow rules using `Action: DUP`_.
+标签(基于转发)的目的池可以通过使用了 `Action: DUP`_ 的其他流规则模拟。
 
 .. _table_rte_flow_migration_l2tunnel:
 
-.. table:: L2_TUNNEL conversion
+.. table:: L2_TUNNEL 转发
 
    +---------------------------+--------------------+
    | Pattern                   | Actions            |
