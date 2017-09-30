@@ -31,92 +31,77 @@
 加密设备库
 ===========================
 
-The cryptodev library provides a Crypto device framework for management and
-provisioning of hardware and software Crypto poll mode drivers, defining generic
-APIs which support a number of different Crypto operations. The framework
-currently only supports cipher, authentication, chained cipher/authentication
-and AEAD symmetric Crypto operations.
+cryptodev库提供了加密设备的框架，通过定义通用API(支持一组加密操作)进行管理和配置软硬件加密轮询模式驱动。
+该框架当前仅支持密码、认证、链式密码/认证和AEAD对称加密操作。
 
-
-Design Principles
+设计原则
 -----------------
 
-The cryptodev library follows the same basic principles as those used in DPDKs
-Ethernet Device framework. The Crypto framework provides a generic Crypto device
-framework which supports both physical (hardware) and virtual (software) Crypto
-devices as well as a generic Crypto API which allows Crypto devices to be
-managed and configured and supports Crypto operations to be provisioned on
-Crypto poll mode driver.
+cryptodev库遵守和DPDK以太网设备框架相同的基本设计原则。加密框架提供了通用的加密设备框架，
+支持物理(硬件)和虚拟(软件)加密设备。通用加密API可以管理和配置加密设备，
+并且支持由加密轮询模式驱动提供的加密操作。
 
 
-Device Management
+设备管理
 -----------------
 
-Device Creation
+设备创建
 ~~~~~~~~~~~~~~~
 
-Physical Crypto devices are discovered during the PCI probe/enumeration of the
-EAL function which is executed at DPDK initialization, based on
-their PCI device identifier, each unique PCI BDF (bus/bridge, device,
-function). Specific physical Crypto devices, like other physical devices in DPDK
-can be white-listed or black-listed using the EAL command line options.
+物理加密设备是在DPDK初始化阶段通过PCI探测发现的，
+每个PCI设备都有唯一标识符(PCI BDF，bus/bridge, device, function)。
+物理加密设备可以通过EAL命令行选项加入到DPDK的白/黑名单中。
 
-Virtual devices can be created by two mechanisms, either using the EAL command
-line options or from within the application using an EAL API directly.
+虚拟设备可以通过两种机制创建，一种使用EAL命令行参数，另外一种在应用中直接调用EAL的API创建。
 
-From the command line using the --vdev EAL option
+通过命令行参数 --vdev 创建
 
 .. code-block:: console
 
    --vdev  'cryptodev_aesni_mb_pmd0,max_nb_queue_pairs=2,max_nb_sessions=1024,socket_id=0'
 
-Our using the rte_vdev_init API within the application code.
+在应用中使用 rte_vdev_init 创建
 
 .. code-block:: c
 
    rte_vdev_init("cryptodev_aesni_mb_pmd",
                      "max_nb_queue_pairs=2,max_nb_sessions=1024,socket_id=0")
 
-All virtual Crypto devices support the following initialization parameters:
+所有虚拟加密设备都支持以下初始化参数:
 
-* ``max_nb_queue_pairs`` - maximum number of queue pairs supported by the device.
-* ``max_nb_sessions`` - maximum number of sessions supported by the device
-* ``socket_id`` - socket on which to allocate the device resources on.
+* ``max_nb_queue_pairs`` - 设备支持的"队列对"数量
+* ``max_nb_sessions`` - 设备支持的会话数量
+* ``socket_id`` - 设备所在的socket
 
 
-Device Identification
+设备标识
 ~~~~~~~~~~~~~~~~~~~~~
 
-Each device, whether virtual or physical is uniquely designated by two
-identifiers:
+每个设备无论是虚拟或者物理的都由两个标识符唯一标识:
 
-- A unique device index used to designate the Crypto device in all functions
-  exported by the cryptodev API.
+- 设备的唯一索引，用于在cryptodev API暴露的所有函数中指定加密设备。
 
-- A device name used to designate the Crypto device in console messages, for
-  administration or debugging purposes. For ease of use, the port name includes
-  the port index.
+- 设备名称，用于管理或调试时在控制台消息中显示加密设备。为了便于使用，端口名中包含了端口索引。
 
 
-Device Configuration
+设备配置
 ~~~~~~~~~~~~~~~~~~~~
 
-The configuration of each Crypto device includes the following operations:
+加密设备的配置包含下面的操作:
 
-- Allocation of resources, including hardware resources if a physical device.
-- Resetting the device into a well-known default state.
-- Initialization of statistics counters.
+- 资源申请，包括硬件资源(如果是物理设备)。
+- 设备重置到默认状态。
+- 统计计数器的初始化。
 
-The rte_cryptodev_configure API is used to configure a Crypto device.
+rte_cryptodev_configure 用于配置加密设备。
 
 .. code-block:: c
 
    int rte_cryptodev_configure(uint8_t dev_id,
                                struct rte_cryptodev_config *config)
 
-The ``rte_cryptodev_config`` structure is used to pass the configuration parameters.
-In contains parameter for socket selection, number of queue pairs and the
-session mempool configuration.
+``rte_cryptodev_config`` 结构用于传递配置参数。
+它包含所选择的socket、队列对的数量和会话内存池的配置。
 
 .. code-block:: c
 
@@ -134,12 +119,10 @@ session mempool configuration.
     };
 
 
-Configuration of Queue Pairs
+队列对的配置
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each Crypto devices queue pair is individually configured through the
-``rte_cryptodev_queue_pair_setup`` API.
-Each queue pairs resources may be allocated on a specified socket.
+每个加密设备队列对都是通过 ``rte_cryptodev_queue_pair_setup`` 独立配置的。
 
 .. code-block:: c
 
@@ -152,78 +135,56 @@ Each queue pairs resources may be allocated on a specified socket.
     };
 
 
-Logical Cores, Memory and Queues Pair Relationships
+逻辑核，内存和队列对的关系
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Crypto device Library as the Poll Mode Driver library support NUMA for when
-a processor’s logical cores and interfaces utilize its local memory. Therefore
-Crypto operations, and in the case of symmetric Crypto operations, the session
-and the mbuf being operated on, should be allocated from memory pools created
-in the local memory. The buffers should, if possible, remain on the local
-processor to obtain the best performance results and buffer descriptors should
-be populated with mbufs allocated from a mempool allocated from local memory.
+对于处理器的逻辑核和接口使用本地内存时，加密设备库和PMD库一样支持NUMA。
+因此加密操作和对称加密操作所使用的会话和mbuf应该从本地内存池(从本地内存中创建的内存池)中申请。
+如果可能的话，应该保持缓冲区在本地处理器上，这样可以获得最佳性能，
+缓冲区描述符应该使用从本地内存池中申请的mbuf填充。
 
-The run-to-completion model also performs better, especially in the case of
-virtual Crypto devices, if the Crypto operation and session and data buffer is
-in local memory instead of a remote processor's memory. This is also true for
-the pipe-line model provided all logical cores used are located on the same
-processor.
+在加密操作、加密会话和数据缓冲区都在本地内存时，run-to-completion模型可以表现的更好，
+尤其对于虚拟加密设备。当工作的逻辑核都在同一个处理器上时，pipe-line模型也是这样的。
 
-Multiple logical cores should never share the same queue pair for enqueuing
-operations or dequeuing operations on the same Crypto device since this would
-require global locks and hinder performance. It is however possible to use a
-different logical core to dequeue an operation on a queue pair from the logical
-core which it was enqueued on. This means that a crypto burst enqueue/dequeue
-APIs are a logical place to transition from one logical core to another in a
-packet processing pipeline.
+在同一个加密设备上千万不要让多个逻辑核对同一个队列对进行出或入队操作，
+因为这需要全局锁会导致性能下降。但是，可以让一个逻辑核从"由另外一个逻辑核入队的队列"中出队一个操作。
+这意味着在包处理流水线中，加密的批量(crypto burst)出入队API是一个逻辑核间信息传递的逻辑场所。
 
-
-Device Features and Capabilities
+设备特性和能力
 ---------------------------------
 
-Crypto devices define their functionality through two mechanisms, global device
-features and algorithm capabilities. Global devices features identify device
-wide level features which are applicable to the whole device such as
-the device having hardware acceleration or supporting symmetric Crypto
-operations,
+加密设备通过两种机制定义功能，全局设备特性和算法能力。全局设备特性是设备等级的特性，
+适用于整个设备，比如硬件加速或者支持对称加密操作。
 
-The capabilities mechanism defines the individual algorithms/functions which
-the device supports, such as a specific symmetric Crypto cipher or
-authentication operation.
+算法能力机制定义设备支持的独立算法/功能，比如特定对称加密密码或认证操作。
 
 
-Device Features
+设备特性
 ~~~~~~~~~~~~~~~
 
-Currently the following Crypto device features are defined:
+当前定义的加密设备特性:
 
-* Symmetric Crypto operations
-* Asymmetric Crypto operations
-* Chaining of symmetric Crypto operations
-* SSE accelerated SIMD vector operations
-* AVX accelerated SIMD vector operations
-* AVX2 accelerated SIMD vector operations
-* AESNI accelerated instructions
-* Hardware off-load processing
+* 对称加密操作
+* 非对称加密操作
+* 对称加密操作链
+* SSE 加速的 SIMD 向量操作
+* AVX 加速的 SIMD 向量操作
+* AVX2 加速的 SIMD 向量操作
+* AESNI 加速的指令
+* 硬件卸载处理
 
 
-Device Operation Capabilities
+设备操作能力
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Crypto capabilities which identify particular algorithm which the Crypto PMD
-supports are  defined by the operation type, the operation transform, the
-transform identifier and then the particulars of the transform. For the full
-scope of the Crypto capability see the definition of the structure in the
-*DPDK API Reference*.
+特殊算法(加密PMD支持)的加密功能由操作类型，操作转换，转换标识符和转换细节定义。
+完整的加密能力结构体定义参考 *DPDK API Reference*。
 
 .. code-block:: c
 
    struct rte_cryptodev_capabilities;
 
-Each Crypto poll mode driver defines its own private array of capabilities
-for the operations it supports. Below is an example of the capabilities for a
-PMD which supports the authentication algorithm SHA1_HMAC and the cipher
-algorithm AES_CBC.
+每个加密轮询模式驱动都为支持的操作定义了一组私有的能力。下面是支持SHA1_HMAC认证算法和AES_CBC密码算法的PMD的能力示例。
 
 .. code-block:: c
 
@@ -272,20 +233,18 @@ algorithm AES_CBC.
     }
 
 
-Capabilities Discovery
+功能发现
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Discovering the features and capabilities of a Crypto device poll mode driver
-is achieved through the ``rte_cryptodev_info_get`` function.
+加密设备的轮询模式驱动通过 ``rte_cryptodev_info_get`` 函数发现特性和能力。
 
 .. code-block:: c
 
    void rte_cryptodev_info_get(uint8_t dev_id,
                                struct rte_cryptodev_info *dev_info);
 
-This allows the user to query a specific Crypto PMD and get all the device
-features and capabilities. The ``rte_cryptodev_info`` structure contains all the
-relevant information for the device.
+用户可以调用该函数查询指定加密PMD并获取所有设备特性和能力。
+``rte_cryptodev_info`` 结构体包含所有与设备相关信息。
 
 .. code-block:: c
 
@@ -306,43 +265,30 @@ relevant information for the device.
     };
 
 
-Operation Processing
+操作处理
 --------------------
 
-Scheduling of Crypto operations on DPDK's application data path is
-performed using a burst oriented asynchronous API set. A queue pair on a Crypto
-device accepts a burst of Crypto operations using enqueue burst API. On physical
-Crypto devices the enqueue burst API will place the operations to be processed
-on the devices hardware input queue, for virtual devices the processing of the
-Crypto operations is usually completed during the enqueue call to the Crypto
-device. The dequeue burst API will retrieve any processed operations available
-from the queue pair on the Crypto device, from physical devices this is usually
-directly from the devices processed queue, and for virtual device's from a
-``rte_ring`` where processed operations are place after being processed on the
-enqueue call.
+DPDK数据路径上加密操作的调度是通过一组猝发式异步API执行的。加密设备的队列对通过批量入队API接收一批加密操作。在物理加密设备上，
+批量入队API会把操作放到设备的硬件输入队列中。而对虚拟设备，加密操作的处理通常在调用入队操作期间就已经完成。
+批量出队API会从加密设备的队列对中获取任何已处理过的可用操作，对于物理设备，
+通常是直接从设备的已处理队列中获取，对于虚拟设备则是从存放已处理(入队时)操作的 ``rte_ring`` 中获取。
 
-
-Enqueue / Dequeue Burst APIs
+批量入队/出队 API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The burst enqueue API uses a Crypto device identifier and a queue pair
-identifier to specify the Crypto device queue pair to schedule the processing on.
-The ``nb_ops`` parameter is the number of operations to process which are
-supplied in the ``ops`` array of ``rte_crypto_op`` structures.
-The enqueue function returns the number of operations it actually enqueued for
-processing, a return value equal to ``nb_ops`` means that all packets have been
-enqueued.
+批量入队API使用加密设备标识符和队列对标识符指定要调度处理的加密设备队列对。
+``ops`` 是待处理操作数组，数组元素是 ``rte_crypto_op`` 结构体。``nb_ops`` 参数是 ``ops`` 数组的大小。
+函数返回实际入队处理操作的数量，返回值等于 ``nb_ops`` 意味着所有的包都已入队。
 
 .. code-block:: c
 
    uint16_t rte_cryptodev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
                                         struct rte_crypto_op **ops, uint16_t nb_ops)
 
-The dequeue API uses the same format as the enqueue API of processed but
-the ``nb_ops`` and ``ops`` parameters are now used to specify the max processed
-operations the user wishes to retrieve and the location in which to store them.
-The API call returns the actual number of processed operations returned, this
-can never be larger than ``nb_ops``.
+
+出队API和入队API的格式一样，只是 ``nb_ops`` 和 ``ops`` 
+参数用于指定用户希望获取已处理操作的最大数量和存放具体操作的数组。
+返回值是实际返回操作的数量，该值一定不会大于 ``nb_ops``。
 
 .. code-block:: c
 
@@ -350,39 +296,28 @@ can never be larger than ``nb_ops``.
                                         struct rte_crypto_op **ops, uint16_t nb_ops)
 
 
-Operation Representation
+操作的表示
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-An Crypto operation is represented by an rte_crypto_op structure, which is a
-generic metadata container for all necessary information required for the
-Crypto operation to be processed on a particular Crypto device poll mode driver.
+加密操作由 rte_crypto_op 结构体表示，该结构中存储了所有加密操作需要的信息。
 
 .. figure:: img/crypto_op.*
 
-The operation structure includes the operation type and the operation status,
-a reference to the operation specific data, which can vary in size and content
-depending on the operation being provisioned. It also contains the source
-mempool for the operation, if it allocate from a mempool. Finally an
-opaque pointer for user specific data is provided.
+操作结构体中包含操作类型和操作状态，操作特有数据的引用，该数据的大小和内容依赖提供的操作而变化。
+如果操作是从内存池中申请的，结构体中也包含源内存池。最后还有一个指向用户特定数据的不透明的指针。
 
-If Crypto operations are allocated from a Crypto operation mempool, see next
-section, there is also the ability to allocate private memory with the
-operation for applications purposes.
+如果加密操作是从加密操作内存池中申请的(参加下一节)，也可以通过该操作为应用申请私有内存。
 
-Application software is responsible for specifying all the operation specific
-fields in the ``rte_crypto_op`` structure which are then used by the Crypto PMD
-to process the requested operation.
+加密PMD处理操作所需要的操作必须要由应用软件指定到 ``rte_crypto_op`` 结构体中。
 
 
-Operation Management and Allocation
+操作管理和申请
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The cryptodev library provides an API set for managing Crypto operations which
-utilize the Mempool Library to allocate operation buffers. Therefore, it ensures
-that the crytpo operation is interleaved optimally across the channels and
-ranks for optimal processing.
-A ``rte_crypto_op`` contains a field indicating the pool that it originated from.
-When calling ``rte_crypto_op_free(op)``, the operation returns to its original pool.
+加密操作利用Mempool库申请操作缓冲区，cryptodev库提供给了一组API用于管理这些加密操作。
+因此，可以确保加密操作在channel和rank间交叉分布，进而获取最近的处理性能。
+``rte_crypto_op`` 中包含了一个指明内存池的字段。调用 ``rte_crypto_op_free(op)`` 时，
+操作被释放回原始的操作池中。
 
 .. code-block:: c
 
@@ -391,17 +326,12 @@ When calling ``rte_crypto_op_free(op)``, the operation returns to its original p
                              unsigned nb_elts, unsigned cache_size, uint16_t priv_size,
                              int socket_id);
 
-During pool creation ``rte_crypto_op_init()`` is called as a constructor to
-initialize each Crypto operation which subsequently calls
-``__rte_crypto_op_reset()`` to configure any operation type specific fields based
-on the type parameter.
 
+在资源池创建时，会调用 ``rte_crypto_op_init()`` 初始化每一个加密操作，然后调用 
+``__rte_crypto_op_reset()`` 根据指定的类型参数配置操作的指定字段。
 
-``rte_crypto_op_alloc()`` and ``rte_crypto_op_bulk_alloc()`` are used to allocate
-Crypto operations of a specific type from a given Crypto operation mempool.
-``__rte_crypto_op_reset()`` is called on each operation before being returned to
-allocate to a user so the operation is always in a good known state before use
-by the application.
+``rte_crypto_op_alloc()`` 和 ``rte_crypto_op_bulk_alloc()`` 用于从给定的加密操作内存池中申请指定类型的加密操作。
+在每个操作返回给申请的用户前会调用 ``__rte_crypto_op_reset()`` ，因此在应用使用前操作总是处于可知的状态。
 
 .. code-block:: c
 
@@ -412,74 +342,57 @@ by the application.
                                      enum rte_crypto_op_type type,
                                      struct rte_crypto_op **ops, uint16_t nb_ops)
 
-``rte_crypto_op_free()`` is called by the application to return an operation to
-its allocating pool.
+``rte_crypto_op_free()`` 用于应用把操作释放会操作池中。
 
 .. code-block:: c
 
    void rte_crypto_op_free(struct rte_crypto_op *op)
 
 
-Symmetric Cryptography Support
+对称加密的支持
 ------------------------------
 
-The cryptodev library currently provides support for the following symmetric
-Crypto operations; cipher, authentication, including chaining of these
-operations, as well as also supporting AEAD operations.
+当前cryptodev库支持以下对称加密操作；密码，认证，包括这些操作链，也支持AEAD操作。
 
 
-Session and Session Management
+会话和会话管理
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Session are used in symmetric cryptographic processing to store the immutable
-data defined in a cryptographic transform which is used in the operation
-processing of a packet flow. Sessions are used to manage information such as
-expand cipher keys and HMAC IPADs and OPADs, which need to be calculated for a
-particular Crypto operation, but are immutable on a packet to packet basis for
-a flow. Crypto sessions cache this immutable data in a optimal way for the
-underlying PMD and this allows further acceleration of the offload of
-Crypto workloads.
+会话用于对称加密中存储固定不变的数据，这些数据定义在密码转换中，用于包流的操作处理。
+会话中管理了诸如扩展密码索引、HMAC IPADs 和 OPAD这类信息，这些信息需要为特定加密操作计算，
+但对于一个流的包基础来说这些信息却是固定不变的。加密会话以最佳方法为底层PMD缓存固定不变的数据，
+进而加速了加密操作。
 
 .. figure:: img/cryptodev_sym_sess.*
 
-The Crypto device framework provides a set of session pool management APIs for
-the creation and freeing of the sessions, utilizing the Mempool Library.
+加密设备框架提供一组利用Mempool库的会话池管理API用于创建和释放会话。
 
-The framework also provides hooks so the PMDs can pass the amount of memory
-required for that PMDs private session parameters, as well as initialization
-functions for the configuration of the session parameters and freeing function
-so the PMD can managed the memory on destruction of a session.
+框架也提供了钩子函数(因此PMD可以传入私有会话参数所需的内存数量)用于会话参数的配置和释放功能，
+因此PMD可以在销毁会话时管理内存。
 
-**Note**: Sessions created on a particular device can only be used on Crypto
-devices of the same type, and if you try to use a session on a device different
-to that on which it was created then the Crypto operation will fail.
+**注意**: 在某个特定设备上创建的会话只能用在相同类型的加密设备上，如果尝试在不同类型的设备上使用，
+加密操作会失败。
 
-``rte_cryptodev_sym_session_create()`` is used to create a symmetric session on
-Crypto device. A symmetric transform chain is used to specify the particular
-operation and its parameters. See the section below for details on transforms.
+``rte_cryptodev_sym_session_create()`` 用于在加密设备上创建对称会话。
+对称的转换链用于指定特定操作和它的参数。转换的相关信息参加下面的章节。
 
 .. code-block:: c
 
    struct rte_cryptodev_sym_session * rte_cryptodev_sym_session_create(
           uint8_t dev_id, struct rte_crypto_sym_xform *xform);
 
-**Note**: For AEAD operations the algorithm selected for authentication and
-ciphering must aligned, eg AES_GCM.
+**注意**: 对于AEAD操作，所选的认证和加密算法必须是对齐的(aligned)，比如AES_GCM。
 
 
-Transforms and Transform Chaining
+转换和转换链
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Symmetric Crypto transforms (``rte_crypto_sym_xform``) are the mechanism used
-to specify the details of the Crypto operation. For chaining of symmetric
-operations such as cipher encrypt and authentication generate, the next pointer
-allows transform to be chained together. Crypto devices which support chaining
-must publish the chaining of symmetric Crypto operations feature flag.
+对称加密转换(``rte_crypto_sym_xform``)是一种用于指定加密操作细节的机制。
+对于对称操作链，比如密码加密和认证生成，``next`` 指针把转换链接在一起。
+支持链的加密设备必须设置对称加密操作链特性的标志。
 
-Currently there are two transforms types cipher and authentication, to specify
-an AEAD operation it is required to chain a cipher and an authentication
-transform together. Also it is important to note that the order in which the
-transforms are passed indicates the order of the chaining.
+当前有两种转换类型(密码和认证)指定给AEAD操作。AEAD操作需要把密码和认证转换链接在一起。
+同时也很重要的是，转换传递的顺序就是链的顺序。
 
 .. code-block:: c
 
@@ -496,26 +409,19 @@ transforms are passed indicates the order of the chaining.
         };
     };
 
-The API does not place a limit on the number of transforms that can be chained
-together but this will be limited by the underlying Crypto device poll mode
-driver which is processing the operation.
+API不会限制链在一起的转换数，但是处理该操作的底层的加密设备PMD会限制。
 
 .. figure:: img/crypto_xform_chain.*
 
 
-Symmetric Operations
+对称操作
 ~~~~~~~~~~~~~~~~~~~~
 
-The symmetric Crypto operation structure contains all the mutable data relating
-to performing symmetric cryptographic processing on a referenced mbuf data
-buffer. It is used for either cipher, authentication, AEAD and chained
-operations.
+对称加密操作的结构体包含所有和对称加密操作相关的可变数据。该结构体用于加密，认证，AEAD或者链式操作。
 
-As a minimum the symmetric operation must have a source data buffer (``m_src``),
-the session type (session-based/less), a valid session (or transform chain if in
-session-less mode) and the minimum authentication/ cipher parameters required
-depending on the type of operation specified in the session or the transform
-chain.
+对称操作必须至少有一个源数据缓冲区(``m_src``)、会话类型(session-based/less)、
+一个合法的会话(或者session-less模式下的转换)和
+根据在会话或转换链中指定的操作类型所需的认证/加密参数。
 
 .. code-block:: c
 
@@ -566,13 +472,13 @@ chain.
     }
 
 
-Asymmetric Cryptography
+非对称加密
 -----------------------
 
-Asymmetric functionality is currently not supported by the cryptodev API.
+cryptodev API当前还不支持非对称功能。
 
-
-Crypto Device API
+加密设备API
 ~~~~~~~~~~~~~~~~~
 
-The cryptodev Library API is described in the *DPDK API Reference* document.
+cryptodev库API在文档 *DPDK API Reference* 中有所描述。
+
