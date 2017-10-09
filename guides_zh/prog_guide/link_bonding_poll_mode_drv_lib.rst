@@ -28,132 +28,104 @@
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Link Bonding Poll Mode Driver Library
+链路聚合轮询模式驱动库
 =====================================
 
-In addition to Poll Mode Drivers (PMDs) for physical and virtual hardware,
-DPDK also includes a pure-software library that
-allows physical PMD's to be bonded together to create a single logical PMD.
+除了物理设备和虚拟硬件的轮询模式驱动(PMD)，DPDK中也包含一个纯软件的库用于把物理PMD绑定在一起
+创建一个逻辑PMD。
 
 .. figure:: img/bond-overview.*
 
-   Bonded PMDs
+   聚合PMD
 
 
-The Link Bonding PMD library(librte_pmd_bond) supports bonding of groups of
-``rte_eth_dev`` ports of the same speed and duplex to provide
-similar the capabilities to that found in Linux bonding driver to allow the
-aggregation of multiple (slave) NICs into a single logical interface between a
-server and a switch. The new bonded PMD will then process these interfaces
-based on the mode of operation specified to provide support for features such
-as redundant links, fault tolerance and/or load balancing.
+Linux聚合驱动把多个NIC接口聚合成一个在服务器和交换机之间的逻辑接口。与之类似，
+链路聚合PMD库(librte_pmd_bond)则支持把多个具有相同速率和双工模式的 ``rte_eth_dev`` 端口聚合起来。
+然后，聚合PMD会根据操作模式处理这些接口，操作模式提供指定特性的支持，比如，冗余链路，容错和/或负载均衡。
 
-The librte_pmd_bond library exports a C API which provides an API for the
-creation of bonded devices as well as the configuration and management of the
-bonded device and its slave devices.
+librte_pmd_bond导出C语言API用于创建聚合设备，还有配置和管理聚合设备及其从设备。
 
 .. note::
 
-    The Link Bonding PMD Library is enabled by default in the build
-    configuration files, the library can be disabled by setting
-    ``CONFIG_RTE_LIBRTE_PMD_BOND=n`` and recompiling the DPDK.
+    链路聚合PMD库在构建配置文件中默认是启用的，可以通过设置 
+    ``CONFIG_RTE_LIBRTE_PMD_BOND=n`` 并重新编译来关闭。
 
-Link Bonding Modes Overview
+链路聚合模式总览
 ---------------------------
 
-Currently the Link Bonding PMD library supports following modes of operation:
+当前链路聚合PMD库支持以下操作模式:
 
-*   **Round-Robin (Mode 0):**
+*   **轮询模式 (Mode 0):**
 
 .. figure:: img/bond-mode-0.*
 
-   Round-Robin (Mode 0)
+   轮询模式(Mode 0)
 
 
-    This mode provides load balancing and fault tolerance by transmission of
-    packets in sequential order from the first available slave device through
-    the last. Packets are bulk dequeued from devices then serviced in a
-    round-robin manner. This mode does not guarantee in order reception of
-    packets and down stream should be able to handle out of order packets.
-
-*   **Active Backup (Mode 1):**
+    该模式为包传输提供负载均衡和容错功能，数据包按照从第一个可用设备到最后一个可用设备顺序传输。
+    数据包从设备中大量出队，然后以轮询方式发送。该模式不保证数据包能够顺序接受，下游应用应该能
+    处理乱序包。
+	
+*   **主备模式 (Mode 1):**
 
 .. figure:: img/bond-mode-1.*
 
-   Active Backup (Mode 1)
+   主备模式 (Mode 1)
 
 
-    In this mode only one slave in the bond is active at any time, a different
-    slave becomes active if, and only if, the primary active slave fails,
-    thereby providing fault tolerance to slave failure. The single logical
-    bonded interface's MAC address is externally visible on only one NIC (port)
-    to avoid confusing the network switch.
+    该模式下同时只有一个设备激活，仅在主设备出错时另外一个从设备才会被激活，从而提容错功能。
+    逻辑聚合接口的MAC地址仅在一个NIC端口上对外可见，这样做是为了避免网络交换出现混淆。
 
-*   **Balance XOR (Mode 2):**
+*   **均衡模式 (Balance XOR, Mode 2):**
 
 .. figure:: img/bond-mode-2.*
 
-   Balance XOR (Mode 2)
+   均衡模式 (Balance XOR, Mode 2)
 
 
-    This mode provides transmit load balancing (based on the selected
-    transmission policy) and fault tolerance. The default policy (layer2) uses
-    a simple calculation based on the packet flow source and destination MAC
-    addresses as well as the number of active slaves available to the bonded
-    device to classify the packet to a specific slave to transmit on. Alternate
-    transmission policies supported are layer 2+3, this takes the IP source and
-    destination addresses into the calculation of the transmit slave port and
-    the final supported policy is layer 3+4, this uses IP source and
-    destination addresses as well as the TCP/UDP source and destination port.
+    该模式提供传输负载均衡(基于选择的传输策略)和容错。默认策略(L2)是基于包的源和目的MAC地址
+    以及聚合设备可用从设备数。传输策略也可以基于L2+L3，该策略也会把源和目的IP用于计算传输的从设备端口。
+    最后支持的策略是基于L3+L4的，该策略使用源IP、目的IP、源TCP/UDP端口和目的TCP/UDP端口。
 
 .. note::
-    The coloring differences of the packets are used to identify different flow
-    classification calculated by the selected transmit policy
+    包的颜色用于标识不同的流分类。
 
 
-*   **Broadcast (Mode 3):**
+*   **广播模式 (Mode 3):**
 
 .. figure:: img/bond-mode-3.*
 
-   Broadcast (Mode 3)
+   广播模式 (Mode 3)
 
 
-    This mode provides fault tolerance by transmission of packets on all slave
-    ports.
+   该模式通过在所有从设备端口上传输包提供容错。
 
-*   **Link Aggregation 802.3AD (Mode 4):**
+*   **链路聚合 802.3AD (Mode 4):**
 
 .. figure:: img/bond-mode-4.*
 
-   Link Aggregation 802.3AD (Mode 4)
+   链路聚合 802.3AD (Mode 4)
 
 
-    This mode provides dynamic link aggregation according to the 802.3ad
-    specification. It negotiates and monitors aggregation groups that share the
-    same speed and duplex settings using the selected balance transmit policy
-    for balancing outgoing traffic.
+    该模式根据802.3ad提供动态链路聚合。xxx并监控用于输出流量的聚合组。（It negotiates and 
+    monitors aggregation groups that share the same speed and duplex settings 
+    using the selected balance transmit policy for balancing outgoing traffic.）
 
-    DPDK implementation of this mode provide some additional requirements of
-    the application.
+    该模式的DPDK实现对应用有一些额外的要求:
 
-    #. It needs to call ``rte_eth_tx_burst`` and ``rte_eth_rx_burst`` with
-       intervals period of less than 100ms.
+    #. 需要在小于100ms的间隔内调用 ``rte_eth_tx_burst`` 和 ``rte_eth_rx_burst`` 。
 
-    #. Calls to ``rte_eth_tx_burst`` must have a buffer size of at least 2xN,
-       where N is the number of slaves. This is a space required for LACP
-       frames. Additionally LACP packets are included in the statistics, but
-       they are not returned to the application.
+    #. 调用 ``rte_eth_tx_burst`` 必须要有大小至少为2xN的缓冲区，N是从设备的数量。
+       该空间是LACP帧需要的。另外LACP包会包含到统计信息中，但不会返回给应用。
 
-*   **Transmit Load Balancing (Mode 5):**
+*   **传输负载均衡模式 (Mode 5):**
 
 .. figure:: img/bond-mode-5.*
 
-   Transmit Load Balancing (Mode 5)
+   传输负载均衡模式 (Mode 5)
 
 
-    This mode provides an adaptive transmit load balancing. It dynamically
-    changes the transmitting slave, according to the computed load. Statistics
-    are collected in 100ms intervals and scheduled every 10ms.
+   该模式提供自适应传输负载均衡。它会根据计算出的负载动态改变传输设备。每100ms收集一次统计信息，每10ms调度一次。
 
 
 实现细节
