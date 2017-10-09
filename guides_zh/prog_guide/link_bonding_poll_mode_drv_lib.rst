@@ -157,27 +157,19 @@ librte_pmd_bond聚合的设备和 *DPDK API Reference* 中描述的以太网PMD�
 
 所有设置都是通过聚合端口API来管理的，并且总是朝一个方向传播(从聚合设备到从设备)
 
-Link Status Change Interrupts / Polling
+链路状态变更中断/轮询
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Link bonding devices support the registration of a link status change callback,
-using the ``rte_eth_dev_callback_register`` API, this will be called when the
-status of the bonding device changes. For example in the case of a bonding
-device which has 3 slaves, the link status will change to up when one slave
-becomes active or change to down when all slaves become inactive. There is no
-callback notification when a single slave changes state and the previous
-conditions are not met. If a user wishes to monitor individual slaves then they
-must register callbacks with that slave directly.
+链路聚合设备可以使用 ``rte_eth_dev_callback_register`` API注册链路状态变更回调函数，
+聚合设备状态变更时回调函数会被调用。比如，聚合设备有三个从设备，其中一个从设备激活时聚合设备激活，
+当所有从设备不活动时，聚合设备状态变为不活动。当单个从设备变更状态并且不满足前面的条件时不会有回调通知。
+如果想要单独监测从设备，需要直接为从设备注册回调函数。
 
-The link bonding library also supports devices which do not implement link
-status change interrupts, this is achieved by polling the devices link status at
-a defined period which is set using the ``rte_eth_bond_link_monitoring_set``
-API, the default polling interval is 10ms. When a device is added as a slave to
-a bonding device it is determined using the ``RTE_PCI_DRV_INTR_LSC`` flag
-whether the device supports interrupts or whether the link status should be
-monitored by polling it.
+链路聚合库也支持没有实现链路状态变更中断的设备，它是通过周期性地轮询设备状态实现的，
+``rte_eth_bond_link_monitoring_set`` API用于设置轮询周期，默认轮询周期是10ms。
+当一个设备加入到聚合设备中时，通过 ``RTE_PCI_DRV_INTR_LSC`` 标识设备是通过中断获得链路变更还是通过轮询监测设备状态。
 
-Requirements / Limitations
+要求 / 限制
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The current implementation only supports devices that support the same speed
@@ -207,7 +199,7 @@ directly on a slave devices after they have been to a bonded device since
 packets read directly from the slave device will no longer be available to the
 bonded device to read.
 
-Configuration
+配置
 ~~~~~~~~~~~~~
 
 Link bonding devices are created using the ``rte_eth_bond_create`` API
@@ -217,7 +209,7 @@ The other configurable parameters for a bonded device are its slave devices,
 its primary slave, a user defined MAC address and transmission policy to use if
 the device is in balance XOR mode.
 
-Slave Devices
+从设备
 ^^^^^^^^^^^^^
 
 Bonding devices support up to a maximum of ``RTE_MAX_ETHPORTS`` slave devices
@@ -228,7 +220,7 @@ configuration of the bonded device on being added to a bonded device.
 The bonded also guarantees to return the MAC address of the slave device to its
 original value of removal of a slave from it.
 
-Primary Slave
+主设备
 ^^^^^^^^^^^^^
 
 The primary slave is used to define the default port to use when a bonded
@@ -236,7 +228,7 @@ device is in active backup mode. A different port will only be used if, and
 only if, the current primary port goes down. If the user does not specify a
 primary port it will default to being the first port added to the bonded device.
 
-MAC Address
+MAC 地址
 ^^^^^^^^^^^
 
 The bonded device can be configured with a user specified MAC address, this
@@ -274,7 +266,7 @@ Balance XOR mode. Layer 2, Layer 2+3, Layer 3+4.
 All these policies support 802.1Q VLAN Ethernet packets, as well as IPv4, IPv6
 and UDP protocols for load balancing.
 
-Using Link Bonding Devices
+使用链路聚合设备
 --------------------------
 
 The librte_pmd_bond library supports two modes of device creation, the libraries
