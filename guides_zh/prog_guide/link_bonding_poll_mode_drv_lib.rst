@@ -156,45 +156,34 @@ Currently the Link Bonding PMD library supports following modes of operation:
     are collected in 100ms intervals and scheduled every 10ms.
 
 
-Implementation Details
+实现细节
 ----------------------
 
-The librte_pmd_bond bonded device are compatible with the Ethernet device API
-exported by the Ethernet PMDs described in the *DPDK API Reference*.
+librte_pmd_bond聚合的设备和 *DPDK API Reference* 中描述的以太网PMD设备API兼容。
 
-The Link Bonding Library supports the creation of bonded devices at application
-startup time during EAL initialization using the ``--vdev`` option as well as
-programmatically via the C API ``rte_eth_bond_create`` function.
+链路聚合库支持在程序启动时通过 ``--vdev`` 选项创建聚合设备。
+也可以在程序运行期间通过C API  ``rte_eth_bond_create`` 函数创建聚合。
 
-Bonded devices support the dynamical addition and removal of slave devices using
-the ``rte_eth_bond_slave_add`` / ``rte_eth_bond_slave_remove`` APIs.
+可以通过API ``rte_eth_bond_slave_add`` / ``rte_eth_bond_slave_remove`` 
+动态增加和移除聚合设备的从设备。
 
-After a slave device is added to a bonded device slave is stopped using
-``rte_eth_dev_stop`` and then reconfigured using ``rte_eth_dev_configure``
-the RX and TX queues are also reconfigured using ``rte_eth_tx_queue_setup`` /
-``rte_eth_rx_queue_setup`` with the parameters use to configure the bonding
-device. If RSS is enabled for bonding device, this mode is also enabled on new
-slave and configured as well.
+在从设备增加到聚合设备中后，使用 ``rte_eth_dev_stop`` 停止从设备，然后使用
+ ``rte_eth_dev_configure`` 重新配置设备，使用 ``rte_eth_tx_queue_setup`` /
+``rte_eth_rx_queue_setup`` API和聚合设备的参数重新配置RX和TX队列。
+如果聚合设备开启了RSS，那么从设备上也会开启并配置RSS。
 
-Setting up multi-queue mode for bonding device to RSS, makes it fully
-RSS-capable, so all slaves are synchronized with its configuration. This mode is
-intended to provide RSS configuration on slaves transparent for client
-application implementation.
+为聚合设备的RSS设置多队列模式使其具有完整的RSS能力，所有从设备有相同的RSS配置。
+这样可以为客户应用提供从设备透明的RSS配置。
 
-Bonding device stores its own version of RSS settings i.e. RETA, RSS hash
-function and RSS key, used to set up its slaves. That let to define the meaning
-of RSS configuration of bonding device as desired configuration of whole bonding
-(as one unit), without pointing any of slave inside. It is required to ensure
-consistency and made it more error-proof.
+聚合设备会存储RSS设置(也就是RETA、RSS哈希函数和RSS key)用于设置从设备。
+这使聚合设备RSS配置成为整个聚合设备的配置，而不是单独在从设备中存储。
+但要保证数据一致性和提供更加严格的错误校验。
 
-RSS hash function set for bonding device, is a maximal set of RSS hash functions
-supported by all bonded slaves. RETA size is a GCD of all its RETA's sizes, so
-it can be easily used as a pattern providing expected behavior, even if slave
-RETAs' sizes are different. If RSS Key is not set for bonded device, it's not
-changed on the slaves and default key for device is used.
+聚合设备的RSS哈希函数集合是所有绑定从设备支持的RSS哈希函数最大集。RETA大小是所有RETA大小的最大公约数，
+因此很容易通过参数使用，即使从设备的RETA大小各不相同。如果聚合设备没有设置RSS Key，
+那么从设备上的RSS Key不会改变，并且设备使用默认key。
 
-All settings are managed through the bonding port API and always are propagated
-in one direction (from bonding to slaves).
+所有设置都是通过聚合端口API来管理的，并且总是朝一个方向传播(从聚合设备到从设备)
 
 Link Status Change Interrupts / Polling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
