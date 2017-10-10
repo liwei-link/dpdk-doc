@@ -33,72 +33,63 @@
 定时器
 =============
 
-The Timer library provides a timer service to DPDK execution units to enable execution of callback functions asynchronously.
-Features of the library are:
+定时器库为DPDK执行单元提供定时器服务，使回调函数可以异步执行。
+特性:
 
-*   Timers can be periodic (multi-shot) or single (one-shot).
+*   定时器可以是周期的(重复)或者单次(只异步地执行一次)。
 
-*   Timers can be loaded from one core and executed on another. It has to be specified in the call to rte_timer_reset().
+*   定时器可以在一个核上加载，在另一个核上执行。必须在调用rte_timer_reset()时指定。
 
-*   Timers provide high precision (depends on the call frequency to rte_timer_manage() that checks timer expiration for the local core).
+*   精度高 (依赖本地核心定时器超时检查函数rte_timer_manage()的调用频率)。
 
-*   If not required in the application, timers can be disabled at compilation time by not calling the rte_timer_manage() to increase performance.
+*   如应用中不需要定时器，可以在编译时关闭，这样就不会调用rte_timer_manage()，从而提升性能。
 
-The timer library uses the rte_get_timer_cycles() function that uses the High Precision Event Timer (HPET)
-or the CPUs Time Stamp Counter (TSC) to provide a reliable time reference.
+定时器库使用rte_get_timer_cycles()函数(该函数使用高精度事件定时器(HPET)或CPU时间
+戳计数器(TSC))提供可靠的时间基准。
 
-This library provides an interface to add, delete and restart a timer. The API is based on BSD callout() with a few differences.
-Refer to the `callout manual <http://www.daemon-systems.org/man/callout.9.html>`_.
+该库提供定时器的增加，删除和重启的接口。该API基于BSD callout()，但有少许不同。
+参考 `callout 手册 <http://www.daemon-systems.org/man/callout.9.html>`_.
 
-Implementation Details
+实现细节
 ----------------------
 
-Timers are tracked on a per-lcore basis,
-with all pending timers for a core being maintained in order of timer expiry in a skiplist data structure.
-The skiplist used has ten levels and each entry in the table appears in each level with probability ¼^level.
-This means that all entries are present in level 0, 1 in every 4 entries is present at level 1,
-one in every 16 at level 2 and so on up to level 9.
-This means that adding and removing entries from the timer list for a core can be done in log(n) time,
-up to 4^10 entries, that is, approximately 1,000,000 timers per lcore.
+定时器以每核为基础，一个核心上所有未决定时器以超时时间为序存放在一个跳跃表数据结构中。
+使用的跳跃表有10级，表中的每一项在每一级上出现的概率是¼^level。这意味着表中所有项都会
+出现在等级0上，每4个有1个出现在等级1上，每16个有1个出现在等级2上，以此类推到等级9。
+因此从表中增加和删除定时器将在log(n)时间内完成，每个表可以有多达4^10个项，也就是每个
+核心可以有大约1,000,000个定时器。
 
-A timer structure contains a special field called status,
-which is a union of a timer state (stopped, pending, running, config) and an owner (lcore id).
-Depending on the timer state, we know if a timer is present in a list or not:
+定时器结构中有一个status字段，它是一个定时器状态(stopped, pending, running, config)
+和所有者(lcore id)的联合体。根据定时器状态，我们可以知道定时器是否出现在表中:
 
-*   STOPPED: no owner, not in a list
+*   STOPPED: 无所有者，不在表中
 
-*   CONFIG: owned by a core, must not be modified by another core, maybe in a list or not, depending on previous state
+*   CONFIG: 有所有者，不能被其他核修改，可能在表中(依赖前一个状态)
 
-*   PENDING: owned by a core, present in a list
+*   PENDING: 有所有者，在表中
 
-*   RUNNING: owned by a core, must not be modified by another core, present in a list
+*   RUNNING: 有所有者，不能被其他核修改，在表中
 
-Resetting or stopping a timer while it is in a CONFIG or RUNNING state is not allowed.
-When modifying the state of a timer,
-a Compare And Swap instruction should be used to guarantee that the status (state+owner) is modified atomically.
+当定时器处于CONFIG或RUNNING状态时不允许重置或停止。修改定时器状态时，
+应该使用Compare And Swap指令以确保状态(所有者+状态)可以被原子地修改。
 
-Inside the rte_timer_manage() function,
-the skiplist is used as a regular list by iterating along the level 0 list, which contains all timer entries,
-until an entry which has not yet expired has been encountered.
-To improve performance in the case where there are entries in the timer list but none of those timers have yet expired,
-the expiry time of the first list entry is maintained within the per-core timer list structure itself.
-On 64-bit platforms, this value can be checked without the need to take a lock on the overall structure.
-(Since expiry times are maintained as 64-bit values,
-a check on the value cannot be done on 32-bit platforms without using either a compare-and-swap (CAS) instruction or using a lock,
-so this additional check is skipped in favor of checking as normal once the lock has been taken.)
-On both 64-bit and 32-bit platforms,
-a call to rte_timer_manage() returns without taking a lock in the case where the timer list for the calling core is empty.
+在rte_timer_manage()函数中，跳跃表被作为一个普通列表(等级0列表)遍历，直到遇到未超时的定时器。
+在表中没有超时定时器时，为了提高性能，表中第一个定时器的超时时间被存放在定时器表结构本身中。
+在64位平台上，该值无需获取这个结构的锁就可以检查。(因为超时时间是64位值，在32位平台上既不使用
+CAS指令也不使用锁该值是无法通过一次检查完成的，因此一次带锁的检查可以让额外的检查跳过)，
+在32和64平台上，如果本地核的定时器表是空的，rte_timer_manage()函数不带锁的调用会直接返回。
 
-Use Cases
+使用案例
 ---------
 
-The timer library is used for periodic calls, such as garbage collectors, or some state machines (ARP, bridging, and so on).
+定时器库用于周期性调用，比如垃圾回收，或者一些状态机(ARP，桥接等)。
 
-References
+参考
 ----------
 
-*   `callout manual <http://www.daemon-systems.org/man/callout.9.html>`_
-    - The callout facility that provides timers with a mechanism to execute a function at a given time.
+*   `callout 手册 <http://www.daemon-systems.org/man/callout.9.html>`_
+    - 在给定时间内执行一个函数的机制。
 
 *   `HPET <http://en.wikipedia.org/wiki/HPET>`_
-    - Information about the High Precision Event Timer (HPET).
+    - 高精度事件定时器(HPET)的信息。
+	

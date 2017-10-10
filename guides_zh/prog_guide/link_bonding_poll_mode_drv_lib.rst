@@ -76,11 +76,11 @@ librte_pmd_bond导出C语言API用于创建聚合设备，还有配置和管理�
     该模式下同时只有一个设备激活，仅在主设备出错时另外一个从设备才会被激活，从而提容错功能。
     逻辑聚合接口的MAC地址仅在一个NIC端口上对外可见，这样做是为了避免网络交换出现混淆。
 
-*   **均衡模式 (Balance XOR, Mode 2):**
+*   **均衡异或模式 (Balance XOR, Mode 2):**
 
 .. figure:: img/bond-mode-2.*
 
-   均衡模式 (Balance XOR, Mode 2)
+   均衡异或模式 (Balance XOR, Mode 2)
 
 
     该模式提供传输负载均衡(基于选择的传输策略)和容错。默认策略(L2)是基于包的源和目的MAC地址
@@ -172,268 +172,206 @@ librte_pmd_bond聚合的设备和 *DPDK API Reference* 中描述的以太网PMD�
 要求 / 限制
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The current implementation only supports devices that support the same speed
-and duplex to be added as a slaves to the same bonded device. The bonded device
-inherits these attributes from the first active slave added to the bonded
-device and then all further slaves added to the bonded device must support
-these parameters.
+当前的实现只支持有相同速率和双工模式的设备加入到同一个聚合设备中。
+聚合设备从第一个激活的从设备继承这两个属性。后面加入的从设备必须支持这些属性/参数。
 
-A bonding device must have a minimum of one slave before the bonding device
-itself can be started.
+聚合设备在启动前必须至少有一个从设备。
 
-To use a bonding device dynamic RSS configuration feature effectively, it is
-also required, that all slaves should be RSS-capable and support, at least one
-common hash function available for each of them. Changing RSS key is only
-possible, when all slave devices support the same key size.
+为了高效地使用聚合设备动态RSS配置特性，所有从设备应该支持RSS能力，
+并且对所有从设备至少有一个通用的可用哈希函数。当所有从设备都支持相同Key大小时，
+才可以修改RSS Key。
 
-To prevent inconsistency on how slaves process packets, once a device is added
-to a bonding device, RSS configuration should be managed through the bonding
-device API, and not directly on the slave.
+为了防止从设备处理包的方式不一致，一旦设备加入到聚合设备中，
+RSS配置都应该通过聚合设备API来操作，而不要直接操作从设备。
 
-Like all other PMD, all functions exported by a PMD are lock-free functions
-that are assumed not to be invoked in parallel on different logical cores to
-work on the same target object.
+和其他PMD一样，导出函数都是无锁的，同一对象不能由不同逻辑核同时调用无锁函数操作。
 
-It should also be noted that the PMD receive function should not be invoked
-directly on a slave devices after they have been to a bonded device since
-packets read directly from the slave device will no longer be available to the
-bonded device to read.
+PMD接收函数不应该直接在已加入聚合设备的从设备上调用，
+因为直接从从设备上读取数据包会导致该数据包无法在聚合设备上读取到。
 
 配置
 ~~~~~~~~~~~~~
 
-Link bonding devices are created using the ``rte_eth_bond_create`` API
-which requires a unique device name, the bonding mode,
-and the socket Id to allocate the bonding device's resources on.
-The other configurable parameters for a bonded device are its slave devices,
-its primary slave, a user defined MAC address and transmission policy to use if
-the device is in balance XOR mode.
+链路聚合设备通过 ``rte_eth_bond_create`` API创建，该函数需要一个唯一设备名，聚合模式，
+和聚合设备资源所在的socket ID。聚合设备其他可配置参数有: 从设备、主设备、用户定义的MAC地址
+和传输策略(如果设备处于均衡异或模式)。
 
 从设备
 ^^^^^^^^^^^^^
 
-Bonding devices support up to a maximum of ``RTE_MAX_ETHPORTS`` slave devices
-of the same speed and duplex. Ethernet devices can be added as a slave to a
-maximum of one bonded device. Slave devices are reconfigured with the
-configuration of the bonded device on being added to a bonded device.
+聚合设备最大支持 ``RTE_MAX_ETHPORTS`` 个同速率同双工模式的从设备。
+以太网设备可以作为从设备加入到聚合设备中。从设备加入到聚合设备时会使用
+聚合设备的配置重新配置从设备。
 
-The bonded also guarantees to return the MAC address of the slave device to its
-original value of removal of a slave from it.
+从聚合设备中删除一个从设备时，从设备原始MAC地址会被恢复。
 
 主设备
 ^^^^^^^^^^^^^
 
-The primary slave is used to define the default port to use when a bonded
-device is in active backup mode. A different port will only be used if, and
-only if, the current primary port goes down. If the user does not specify a
-primary port it will default to being the first port added to the bonded device.
+主设备是聚合设备工作于备份模式的默认端口。仅在当前主端口不可用时其他端口才会被使用。
+如果用户不指定主设备，那么第一个加入的设备就是主设备。
 
 MAC 地址
 ^^^^^^^^^^^
 
-The bonded device can be configured with a user specified MAC address, this
-address will be inherited by the some/all slave devices depending on the
-operating mode. If the device is in active backup mode then only the primary
-device will have the user specified MAC, all other slaves will retain their
-original MAC address. In mode 0, 2, 3, 4 all slaves devices are configure with
-the bonded devices MAC address.
+用户可以为聚合设备配置指定MAC地址，并且该地址会被一些/所有(依据操作模式)从设备继承。
+如果设备处于备份模式，那么只有主设备拥有用户指定MAC地址，所有其他从设备保持原有MAC。
+在模式0、2、3、4中，所有从设备的MAC都被配置成聚合设备的MAC地址。
 
-If a user defined MAC address is not defined then the bonded device will
-default to using the primary slaves MAC address.
+如果用户未定义MAC地址，那么聚合设备默认使用主设备MAC地址。
 
-Balance XOR Transmit Policies
+均衡异或传输策略
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are 3 supported transmission policies for bonded device running in
-Balance XOR mode. Layer 2, Layer 2+3, Layer 3+4.
+运行于均衡异或模式的聚合设备支持三种传输策略。2层，2+3层，3+4层
 
-*   **Layer 2:**   Ethernet MAC address based balancing is the default
-    transmission policy for Balance XOR bonding mode. It uses a simple XOR
-    calculation on the source MAC address and destination MAC address of the
-    packet and then calculate the modulus of this value to calculate the slave
-    device to transmit the packet on.
+*   **2层:**   以太网MAC地址均衡是均衡异或聚合模式默认的传输策略。对包的源和目的
+    MAC地址做异或运算，然后计算该值的模，从而获得传输该包的从设备。
 
-*   **Layer 2 + 3:** Ethernet MAC address & IP Address based balancing uses a
-    combination of source/destination MAC addresses and the source/destination
-    IP addresses of the data packet to decide which slave port the packet will
-    be transmitted on.
+*   **2 + 3层:** 以太网MAC地址和IP地址均衡使用包的源/目的MAC和源/目的IP的组合决
+    定传输包的从设备。
 
-*   **Layer 3 + 4:**  IP Address & UDP Port based  balancing uses a combination
-    of source/destination IP Address and the source/destination UDP ports of
-    the packet of the data packet to decide which slave port the packet will be
-    transmitted on.
+*   **3 + 4层:**  IP地址和UDP端口均衡使用包的源/目的IP和源/目的UDP端口的组合决
+    定传输包的从设备。
 
-All these policies support 802.1Q VLAN Ethernet packets, as well as IPv4, IPv6
-and UDP protocols for load balancing.
+负载均衡的所有策略都支持802.1Q VLAN以太网包，IPv4，IPv6和UDP协议。
 
 使用链路聚合设备
 --------------------------
 
-The librte_pmd_bond library supports two modes of device creation, the libraries
-export full C API or using the EAL command line to statically configure link
-bonding devices at application startup. Using the EAL option it is possible to
-use link bonding functionality transparently without specific knowledge of the
-libraries API, this can be used, for example, to add bonding functionality,
-such as active backup, to an existing application which has no knowledge of
-the link bonding C API.
+librte_pmd_bond支持两种设备创建方式，一种是使用C语言API，另一种是在应用启动时
+使用EAL命令行静态的配置聚合设备。通过命令行选项使用链路聚合功能无需了解API，
+比如，可用于给那些不使用C API的应用增加聚合的功能，比如活动备份。
 
-Using the Poll Mode Driver from an Application
+在应用中使用轮询模式驱动
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Using the librte_pmd_bond libraries API it is possible to dynamically create
-and manage link bonding device from within any application. Link bonding
-devices are created using the ``rte_eth_bond_create`` API which requires a
-unique device name, the link bonding mode to initial the device in and finally
-the socket Id which to allocate the devices resources onto. After successful
-creation of a bonding device it must be configured using the generic Ethernet
-device configure API ``rte_eth_dev_configure`` and then the RX and TX queues
-which will be used must be setup using ``rte_eth_tx_queue_setup`` /
-``rte_eth_rx_queue_setup``.
+使用librte_pmd_bond库API可以在应用中动态创建并管理链路聚合设备。``rte_eth_bond_create`` 
+用于创建链路聚合设备，该API需要一个唯一设备名，聚合模式(用于初始化设备)和设备资源所在
+socket ID。聚合设备创建成功后必须使用通用以太网设备配置API ``rte_eth_dev_configure`` 
+进行配置，RX 和 TX 队列也必须在使用 ``rte_eth_tx_queue_setup`` / ``rte_eth_rx_queue_setup`` 
+设置后才能使用。
 
-Slave devices can be dynamically added and removed from a link bonding device
-using the ``rte_eth_bond_slave_add`` / ``rte_eth_bond_slave_remove``
-APIs but at least one slave device must be added to the link bonding device
-before it can be started using ``rte_eth_dev_start``.
+``rte_eth_bond_slave_add`` / ``rte_eth_bond_slave_remove`` 用于动态地向/从聚合设备中
+增加/删除从设备。聚合设备在使用 ``rte_eth_dev_start`` 启动前至少要有一个从设备。
 
-The link status of a bonded device is dictated by that of its slaves, if all
-slave device link status are down or if all slaves are removed from the link
-bonding device then the link status of the bonding device will go down.
+聚合设备的链路状态是由它的从设备决定的，如果所有从设备都是down的或者所有从设备都从聚
+合设备中删除了，那么聚合设备的状态才会down。
 
-It is also possible to configure / query the configuration of the control
-parameters of a bonded device using the provided APIs
 ``rte_eth_bond_mode_set/ get``, ``rte_eth_bond_primary_set/get``,
-``rte_eth_bond_mac_set/reset`` and ``rte_eth_bond_xmit_policy_set/get``.
+``rte_eth_bond_mac_set/reset`` 和 ``rte_eth_bond_xmit_policy_set/get`` 
+这些API用于配置或查询聚合设备的控制参数。
 
-Using Link Bonding Devices from the EAL Command Line
+通过EAL命令行使用链路聚合设备
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Link bonding devices can be created at application startup time using the
-``--vdev`` EAL command line option. The device name must start with the
-net_bond prefix followed by numbers or letters. The name must be unique for
-each device. Each device can have multiple options arranged in a comma
-separated list. Multiple devices definitions can be arranged by calling the
-``--vdev`` option multiple times.
+聚合设备可以在应用启动时通过使用 ``--vdev`` EAL命令行选项创建。设备名称必须以
+net_bond开头，后面紧随数字或字母，每个设备名必须唯一。每个设备可以有多个选项，
+选项之间用逗号分隔。可以通过多次使用 ``--vdev`` 选项来定义多个设备。
 
-Device names and bonding options must be separated by commas as shown below:
+设备名和设备选项之间必须用逗号分隔:
 
 .. code-block:: console
 
     $RTE_TARGET/app/testpmd -l 0-3 -n 4 --vdev 'net_bond0,bond_opt0=..,bond opt1=..'--vdev 'net_bond1,bond _opt0=..,bond_opt1=..'
 
-Link Bonding EAL Options
+链路聚合EAL选项
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are multiple ways of definitions that can be assessed and combined as
-long as the following two rules are respected:
+选项定义方法可以有多种形式，只要遵守下面的两条规则:
 
-*   A unique device name, in the format of net_bondX is provided,
-    where X can be any combination of numbers and/or letters,
-    and the name is no greater than 32 characters long.
+*   唯一设备名，以net_bondX形式提供，这里的X可以是数组和/或字母任意组合，
+    名字长度不超过32字符。
 
-*   A least one slave device is provided with for each bonded device definition.
+*   至少要提供一个从设备给链路聚合设备。
 
-*   The operation mode of the bonded device being created is provided.
+*   提供聚合设备的操作模式。
 
-The different options are:
+不同的选项有:
 
-*   mode: Integer value defining the bonding mode of the device.
-    Currently supports modes 0,1,2,3,4,5 (round-robin, active backup, balance,
-    broadcast, link aggregation, transmit load balancing).
+*   mode: 整数，定义设备聚合模式。当前支持的模式有0,1,2,3,4,5(轮询,活动备份,均衡,
+    广播,链路聚合,传输负载均衡)。
 
 .. code-block:: console
 
         mode=2
 
-*   slave: Defines the PMD device which will be added as slave to the bonded
-    device. This option can be selected multiple times, for each device to be
-    added as a slave. Physical devices should be specified using their PCI
-    address, in the format domain:bus:devid.function
+*   slave: 定义要加入到聚合设备中的PMD设备。该选项可以多次使用，用于增加多个PMD设备。
+    物理设备使用PCI地址指定，格式: domain:bus:devid.function。
 
 .. code-block:: console
 
         slave=0000:0a:00.0,slave=0000:0a:00.1
 
-*   primary: Optional parameter which defines the primary slave port,
-    is used in active backup mode to select the primary slave for data TX/RX if
-    it is available. The primary port also is used to select the MAC address to
-    use when it is not defined by the user. This defaults to the first slave
-    added to the device if it is specified. The primary device must be a slave
-    of the bonded device.
+*   primary: (可选)定义主设备端口，在活动备份模式下用于数据TX/RX的主设备。主设
+    备也用于在用户未指定MAC地址时为聚合设备提供MAC地址。默认的主设备是第一个加
+    入到聚合设备中的设备。主设备必须是聚合设备中的一个设备。
 
 .. code-block:: console
 
         primary=0000:0a:00.0
 
-*   socket_id: Optional parameter used to select which socket on a NUMA device
-    the bonded devices resources will be allocated on.
+*   socket_id: (可选)指定申请聚合设备资源的socket。
 
 .. code-block:: console
 
         socket_id=0
 
-*   mac: Optional parameter to select a MAC address for link bonding device,
-    this overrides the value of the primary slave device.
+*   mac: (可选)聚合设备的MAC地址，会覆盖主设备的值。
 
 .. code-block:: console
 
         mac=00:1e:67:1d:fd:1d
 
-*   xmit_policy: Optional parameter which defines the transmission policy when
-    the bonded device is in  balance mode. If not user specified this defaults
-    to l2 (layer 2) forwarding, the other transmission policies available are
-    l23 (layer 2+3) and l34 (layer 3+4)
+*   xmit_policy: (可选)定义聚合设备处于均衡模式时选用的传输策略。如用户未指定，
+    默认l2(2层转发)，其他可用策略有l23和l34。
 
 .. code-block:: console
 
         xmit_policy=l23
 
-*   lsc_poll_period_ms: Optional parameter which defines the polling interval
-    in milli-seconds at which devices which don't support lsc interrupts are
-    checked for a change in the devices link status
+*   lsc_poll_period_ms: (可选)设备(不支持lsc中断)状态轮询周期(毫秒)。
 
 .. code-block:: console
 
         lsc_poll_period_ms=100
 
-*   up_delay: Optional parameter which adds a delay in milli-seconds to the
-    propagation of a devices link status changing to up, by default this
-    parameter is zero.
+*   up_delay: (可选) 设备状态变更为up时，延迟通知的时间(毫秒)，默认0。
 
 .. code-block:: console
 
         up_delay=10
 
-*   down_delay: Optional parameter which adds a delay in milli-seconds to the
-    propagation of a devices link status changing to down, by default this
-    parameter is zero.
+*   down_delay: (可选) 设备状态变更为down时，延迟通知的时间(毫秒)，默认0。
 
 .. code-block:: console
 
         down_delay=50
 
-Examples of Usage
+使用实例
 ^^^^^^^^^^^^^^^^^
 
-Create a bonded device in round robin mode with two slaves specified by their PCI address:
+创建具有两个从设备，轮询模式的聚合设备:
 
 .. code-block:: console
 
     $RTE_TARGET/app/testpmd -l 0-3 -n 4 --vdev 'net_bond0,mode=0, slave=0000:00a:00.01,slave=0000:004:00.00' -- --port-topology=chained
 
-Create a bonded device in round robin mode with two slaves specified by their PCI address and an overriding MAC address:
+创建具有两个从设备，轮询模式，指定MAC地址的聚合设备:
 
 .. code-block:: console
 
     $RTE_TARGET/app/testpmd -l 0-3 -n 4 --vdev 'net_bond0,mode=0, slave=0000:00a:00.01,slave=0000:004:00.00,mac=00:1e:67:1d:fd:1d' -- --port-topology=chained
 
-Create a bonded device in active backup mode with two slaves specified, and a primary slave specified by their PCI addresses:
+活动备份模式的聚合设备，有两个从设备，并且通过PCI地址指定一个为主设备:
 
 .. code-block:: console
 
     $RTE_TARGET/app/testpmd -l 0-3 -n 4 --vdev 'net_bond0,mode=1, slave=0000:00a:00.01,slave=0000:004:00.00,primary=0000:00a:00.01' -- --port-topology=chained
 
-Create a bonded device in balance mode with two slaves specified by their PCI addresses, and a transmission policy of layer 3 + 4 forwarding:
+均衡模式的聚合设备，有两个从设备，传输策略是3+4层转发:
 
 .. code-block:: console
 
     $RTE_TARGET/app/testpmd -l 0-3 -n 4 --vdev 'net_bond0,mode=2, slave=0000:00a:00.01,slave=0000:004:00.00,xmit_policy=l34' -- --port-topology=chained
+	
