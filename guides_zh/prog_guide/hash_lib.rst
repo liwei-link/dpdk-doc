@@ -33,18 +33,18 @@
 Hash库
 ============
 
-The DPDK provides a Hash Library for creating hash table for fast lookup.
-The hash table is a data structure optimized for searching through a set of entries that are each identified by a unique key.
-For increased performance the DPDK Hash requires that all the keys have the same number of bytes which is set at the hash creation time.
+DPDK的哈希库用于创建快速查找的哈希表。
+哈希表是一种搜索优化的数据结构，表中每个实体都通过唯一键标识。
+为了提高性能，DPDK哈希库要求在创建时所有键都有相同字节数。
 
-Hash API Overview
+Hash API 总览
 -----------------
 
-The main configuration parameters for the hash are:
+哈希的主要配置参数有:
 
-*   Total number of hash entries
+*   哈希实例的总数
 
-*   Size of the key in bytes
+*   键的大小(字节数)
 
 The hash also allows the configuration of some low-level implementation related parameters such as:
 
