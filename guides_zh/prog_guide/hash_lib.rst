@@ -46,59 +46,48 @@ Hash API 总览
 
 *   键的大小(字节数)
 
-The hash also allows the configuration of some low-level implementation related parameters such as:
+哈希表也支持一些低级的参数配置，比如:
 
-*   Hash function to translate the key into a bucket index
+*   把键转换成桶索引的哈希函数
 
-The main methods exported by the hash are:
+哈希表暴露的主要方法有:
 
-*   Add entry with key: The key is provided as input. If a new entry is successfully added to the hash for the specified key,
-    or there is already an entry in the hash for the specified key, then the position of the entry is returned.
-    If the operation was not successful, for example due to lack of free entries in the hash, then a negative value is returned;
+*   使用键增加条目: 键作为输入。如果条目增加成功或者指定的键已经在哈希表中存在，那么返回该条目的位置。
+    如果操作失败，比如哈希表空间不足时，则返回一个负值。
 
-*   Delete entry with key: The key is provided as input. If an entry with the specified key is found in the hash,
-    then the entry is removed from the hash and the position where the entry was found in the hash is returned.
-    If no entry with the specified key exists in the hash, then a negative value is returned
+*   使用键删除条目: 键作为输入。如果指定键对应的条目在哈希表中存在，那么该条目会被从哈希表中删除，
+    并返回其在哈希表中的位置。如果未查找到则返回负值。
 
-*   Lookup for entry with key: The key is provided as input. If an entry with the specified key is found in the hash (lookup hit),
-    then the position of the entry is returned, otherwise (lookup miss) a negative value is returned.
+*   使用键查找条目: 键作为输入。如果找到了(查找命中)键对应的条目那么就返回该条目的位置，否则(查找未命中)返回负值。
 
-Apart from these method explained above, the API allows the user three more options:
+除了上面解释的方法外，API提供了三个其他的选择:
 
-*   Add / lookup / delete with key and precomputed hash: Both the key and its precomputed hash are provided as input. This allows
-    the user to perform these operations faster, as hash is already computed.
+*   使用键和预计算哈希增/查/删: 键和预计算哈希作为输入。由于哈希已预先计算完成，所以这可以让用户操作更快速。
 
-*   Add / lookup with key and data: A pair of key-value is provided as input. This allows the user to store
-    not only the key, but also data which may be either a 8-byte integer or a pointer to external data (if data size is more than 8 bytes).
+*   使用键和数据增/查: 一个键值对作为输入。同时存储键和值，但是该值必须是8字节的整数或指针(指向数据，如数据大于8字节)
 
-*   Combination of the two options above: User can provide key, precomputed hash and data.
+*   上面两种的组合: 用户可以提供键、预计算哈希和数据。
 
-Also, the API contains a method to allow the user to look up entries in bursts, achieving higher performance
-than looking up individual entries, as the function prefetches next entries at the time it is operating
-with the first ones, which reduces significantly the impact of the necessary memory accesses.
-Notice that this method uses a pipeline of 8 entries (4 stages of 2 entries), so it is highly recommended
-to use at least 8 entries per burst.
+另外，该API也提供了让用户批量查找条目的方法，从而实现比单个查找更高的性能。该方法在操作第一个条目时会预取后面的条目，
+这样可以显著地降低必要的内存访问。要注意的是，该方法使用8条目(4 stages of 2 entries)的管道，因此强烈建议每次批量操作
+的条目数量至少是8个。
 
-The actual data associated with each key can be either managed by the user using a separate table that
-mirrors the hash in terms of number of entries and position of each entry,
-as shown in the Flow Classification use case describes in the following sections,
-or stored in the hash table itself.
+每个键实际的数据可以被使用镜像表(条目数和条目位置相同的表)的用户管理(比如后面章节中描述的流分类使用案例)，
+或者存储在哈希表本身中。
 
-The example hash tables in the L2/L3 Forwarding sample applications defines which port to forward a packet to based on a packet flow identified by the five-tuple lookup.
-However, this table could also be used for more sophisticated features and provide many other functions and actions that could be performed on the packets and flows.
+L2/L3转发示例应用中的哈希表提供的是流标识(五元组)和转发端口的映射关系。
+但是该哈希表也可用于更加复杂的特性，提供更多的功能和在包与流上的操作。
 
-Multi-process support
+多进程的支持
 ---------------------
 
-The hash library can be used in a multi-process environment, minding that only lookups are thread-safe.
-The only function that can only be used in single-process mode is rte_hash_set_cmp_func(), which sets up
-a custom compare function, which is assigned to a function pointer (therefore, it is not supported in
-multi-process mode).
+哈希库可用于多进程环境，但要注意仅查找操作是线程安全的。rte_hash_set_cmp_func() 函数仅能用于单进程模式，
+用于设置自定义比较函数，比较函数通过函数指针提供(因此，不支持多进程模式)。
 
-Implementation Details
+实现细节
 ----------------------
 
-The hash table has two main tables:
+哈希表有两个主要的表:
 
 * First table is an array of entries which is further divided into buckets,
   with the same number of consecutive array entries in each bucket. Each entry contains the computed primary
