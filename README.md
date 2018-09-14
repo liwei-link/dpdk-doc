@@ -16,4 +16,4 @@ DPDK文档中文版（17.05.0-rc4）
 ```
 构建完成的文档在 guides_zh/html/index.html
 
-在线版本 [http://www.0211.life/zh](http://www.0211.life/zh)
+在线版本 [https://www.lee0211.cn/dpdk/index.html](https://www.lee0211.cn/dpdk/index.html)
